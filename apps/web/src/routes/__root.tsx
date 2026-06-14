@@ -11,7 +11,7 @@ import Header from '../components/header';
 
 import appCss from '../index.css?url';
 
-export const Route = createRootRoute()({
+export const Route = createRootRoute({
 	head: () => ({
 		meta: [
 			{
