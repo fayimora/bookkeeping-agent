@@ -8,6 +8,7 @@
     "dev": "vp dev"
   },
   "dependencies": {
+    "@bookeeping-agent/db": "workspace:*",
     "@bookeeping-agent/env": "workspace:*",
     "@bookeeping-agent/ui": "workspace:*",
     "@tailwindcss/vite": "^4.2.2",
