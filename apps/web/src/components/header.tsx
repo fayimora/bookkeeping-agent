@@ -5,6 +5,7 @@ export default function Header() {
 		{ to: '/', label: 'Home' },
 		{ to: '/expenses', label: 'Expenses' },
 		{ to: '/categories', label: 'Categories' },
+		{ to: '/chat', label: 'Chat' },
 	] as const;
 
 	return (
