@@ -8,8 +8,8 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 
 import Header from '../components/header';
-
 import appCss from '../index.css?url';
+import { QueryProvider } from '../providers/query-provider';
 
 export const Route = createRootRoute({
 	head: () => ({
@@ -43,12 +43,14 @@ function RootDocument() {
 				<HeadContent />
 			</head>
 			<body>
-				<div className="grid h-svh grid-rows-[auto_1fr]">
-					<Header />
-					<Outlet />
-				</div>
-				<Toaster richColors />
-				<TanStackRouterDevtools position="bottom-left" />
+				<QueryProvider>
+					<div className="grid h-svh grid-rows-[auto_1fr]">
+						<Header />
+						<Outlet />
+					</div>
+					<Toaster richColors />
+					<TanStackRouterDevtools position="bottom-left" />
+				</QueryProvider>
 				<Scripts />
 			</body>
 		</html>
