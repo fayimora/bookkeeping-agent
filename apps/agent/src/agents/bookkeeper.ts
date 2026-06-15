@@ -7,7 +7,7 @@ import receiptEntry from '../skills/receipt-entry/SKILL.md' with {
 import spendAnalysis from '../skills/spend-analysis/SKILL.md' with {
 	type: 'skill',
 };
-import { expenseTools } from '../tools/expenses.ts';
+import { bookkeeperTools } from '../tools/bookkeeper-tools.ts';
 
 export default createAgent(() => ({
 	name: 'bookkeeper',
@@ -15,5 +15,5 @@ export default createAgent(() => ({
 	model: env.AGENT_MODEL,
 	instructions: bookkeeperInstructions,
 	skills: [spendAnalysis, receiptEntry],
-	tools: expenseTools,
+	tools: bookkeeperTools,
 }));

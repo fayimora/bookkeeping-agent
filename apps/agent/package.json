@@ -12,7 +12,7 @@
     "@bookeeping-agent/db": "workspace:*",
     "@bookeeping-agent/env": "workspace:*",
     "@flue/runtime": "^0.11.1",
-    "zod": "catalog:"
+    "typebox": "^1.1.38"
   },
   "devDependencies": {
     "@bookeeping-agent/config": "workspace:*",
