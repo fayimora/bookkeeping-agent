@@ -5,6 +5,10 @@ export const env = createEnv({
 	server: {
 		DATABASE_URL: z.string().min(1),
 		CORS_ORIGIN: z.url(),
+		AGENT_MODEL: z
+			.string()
+			.min(1)
+			.default('fireworks/accounts/fireworks/models/kimi-k2p6'),
 		NODE_ENV: z
 			.enum(['development', 'production', 'test'])
 			.default('development'),
