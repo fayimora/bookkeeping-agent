@@ -1,0 +1,23 @@
+{
+  "name": "agent",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "flue build --target node",
+    "dev": "flue dev --target node",
+    "start": "node dist/server.mjs",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bookeeping-agent/db": "workspace:*",
+    "@bookeeping-agent/env": "workspace:*",
+    "@flue/runtime": "^0.11.1",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@bookeeping-agent/config": "workspace:*",
+    "@flue/cli": "^0.11.1",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}
