@@ -7,16 +7,84 @@ import {
 	CardTitle,
 } from '@bookeeping-agent/ui/components/card';
 import { Textarea } from '@bookeeping-agent/ui/components/textarea';
-import { BotIcon, PaperclipIcon, SendIcon, XIcon } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+	BotIcon,
+	PaperclipIcon,
+	SendIcon,
+	UserIcon,
+	XIcon,
+} from 'lucide-react';
 import { type FormEvent, useRef, useState } from 'react';
+import { toast } from 'sonner';
+
+import { sendChatMessage } from '../../server/chat';
+
+interface ChatMessage {
+	content: string;
+	id: string;
+	role: 'assistant' | 'user';
+}
+
+function createMessage(
+	role: ChatMessage['role'],
+	content: string
+): ChatMessage {
+	return {
+		id: crypto.randomUUID(),
+		role,
+		content,
+	};
+}
 
 export function ChatShell() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const formRef = useRef<HTMLFormElement>(null);
+	const queryClient = useQueryClient();
 	const [files, setFiles] = useState<File[]>([]);
+	const [message, setMessage] = useState('');
+	const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+	const chatMutation = useMutation({
+		mutationFn: async (content: string) =>
+			await sendChatMessage({ data: { message: content } }),
+		onError: () => {
+			toast.error('Could not reach the bookkeeper agent');
+		},
+		onSuccess: async (response) => {
+			setMessages((currentMessages) => [
+				...currentMessages,
+				createMessage('assistant', response.message),
+			]);
+			await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+		},
+	});
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
+
+		const trimmedMessage = message.trim();
+
+		if (!trimmedMessage) {
+			return;
+		}
+
+		if (files.length > 0) {
+			toast.info(
+				'Receipt attachments are selected, but receipt processing is next. Sending text only.'
+			);
+		}
+
+		setMessages((currentMessages) => [
+			...currentMessages,
+			createMessage('user', trimmedMessage),
+		]);
+		setMessage('');
+		setFiles([]);
+		chatMutation.mutate(trimmedMessage);
 	};
+
+	const canSend = message.trim().length > 0 && !chatMutation.isPending;
 
 	return (
 		<main className="min-h-0 overflow-auto px-4 py-6 md:px-8">
@@ -32,25 +100,74 @@ export function ChatShell() {
 					<CardHeader>
 						<CardTitle>Bookkeeper assistant</CardTitle>
 						<CardDescription>
-							Ask questions or attach a receipt.
+							Ask questions or add a text expense.
 						</CardDescription>
 					</CardHeader>
 					<CardContent className="flex min-h-0 flex-1 flex-col gap-5">
-						<div className="grid min-h-72 flex-1 place-items-center border bg-background/40 p-6 text-center">
-							<div className="flex max-w-sm flex-col items-center gap-3">
-								<div className="flex size-10 items-center justify-center border bg-muted text-muted-foreground">
-									<BotIcon className="size-5" />
+						<div
+							aria-live="polite"
+							className="min-h-72 flex-1 space-y-4 overflow-auto border bg-background/40 p-4"
+						>
+							{messages.length === 0 ? (
+								<div className="grid min-h-60 place-items-center text-center">
+									<div className="flex max-w-sm flex-col items-center gap-3">
+										<div className="flex size-10 items-center justify-center border bg-muted text-muted-foreground">
+											<BotIcon className="size-5" />
+										</div>
+										<div>
+											<p className="font-medium text-sm">No messages yet</p>
+											<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
+												Ask about expenses or add one in plain English.
+											</p>
+										</div>
+									</div>
 								</div>
-								<div>
-									<p className="font-medium text-sm">No messages yet</p>
-									<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
-										Send a message or attach a receipt.
-									</p>
+							) : (
+								<div className="flex flex-col gap-4">
+									{messages.map((chatMessage) => (
+										<div
+											className={
+												chatMessage.role === 'user'
+													? 'flex justify-end'
+													: 'flex justify-start'
+											}
+											key={chatMessage.id}
+										>
+											<div
+												className={
+													chatMessage.role === 'user'
+														? 'flex max-w-[80%] gap-3 border bg-primary px-4 py-3 text-primary-foreground'
+														: 'flex max-w-[80%] gap-3 border bg-muted px-4 py-3 text-foreground'
+												}
+											>
+												{chatMessage.role === 'user' ? (
+													<UserIcon className="mt-0.5 size-4 shrink-0" />
+												) : (
+													<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+												)}
+												<p className="whitespace-pre-wrap text-sm leading-relaxed">
+													{chatMessage.content}
+												</p>
+											</div>
+										</div>
+									))}
+									{chatMutation.isPending ? (
+										<div className="flex justify-start">
+											<div className="flex max-w-[80%] items-center gap-3 border bg-muted px-4 py-3 text-muted-foreground text-sm">
+												<BotIcon className="size-4" />
+												Thinking…
+											</div>
+										</div>
+									) : null}
 								</div>
-							</div>
+							)}
 						</div>
 
-						<form className="flex flex-col gap-3" onSubmit={handleSubmit}>
+						<form
+							className="flex flex-col gap-3"
+							onSubmit={handleSubmit}
+							ref={formRef}
+						>
 							{files.length > 0 ? (
 								<ul className="flex flex-wrap gap-2">
 									{files.map((file) => (
@@ -82,8 +199,26 @@ export function ChatShell() {
 								Message
 							</label>
 							<Textarea
+								disabled={chatMutation.isPending}
 								id="chat-message"
-								placeholder="Ask about expenses or attach a receipt"
+								onChange={(event) => setMessage(event.target.value)}
+								onKeyDown={(event) => {
+									if (
+										event.key !== 'Enter' ||
+										event.shiftKey ||
+										event.nativeEvent.isComposing
+									) {
+										return;
+									}
+
+									event.preventDefault();
+
+									if (canSend) {
+										formRef.current?.requestSubmit();
+									}
+								}}
+								placeholder="Ask about expenses or add one, e.g. “Add £12.50 at Pret today for food”"
+								value={message}
 							/>
 							<input
 								accept="image/*,.pdf"
@@ -97,6 +232,7 @@ export function ChatShell() {
 							/>
 							<div className="flex items-center justify-between gap-3">
 								<Button
+									disabled={chatMutation.isPending}
 									onClick={() => fileInputRef.current?.click()}
 									type="button"
 									variant="outline"
@@ -104,8 +240,8 @@ export function ChatShell() {
 									<PaperclipIcon data-icon="inline-start" />
 									Attach receipt
 								</Button>
-								<Button type="submit">
-									Send message
+								<Button disabled={!canSend} type="submit">
+									{chatMutation.isPending ? 'Sending…' : 'Send message'}
 									<SendIcon data-icon="inline-end" />
 								</Button>
 							</div>

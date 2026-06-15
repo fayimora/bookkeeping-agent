@@ -9,6 +9,8 @@ export const env = createEnv({
 			.string()
 			.min(1)
 			.default('fireworks/accounts/fireworks/models/kimi-k2p6'),
+		FLUE_BASE_URL: z.url().default('http://localhost:3583'),
+		FLUE_TOKEN: z.string().min(1).optional(),
 		NODE_ENV: z
 			.enum(['development', 'production', 'test'])
 			.default('development'),
