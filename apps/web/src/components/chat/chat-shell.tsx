@@ -18,9 +18,29 @@ import {
 import { type FormEvent, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import {
+	isSupportedImageType,
+	maxAttachments,
+	maxImageBytes,
+	supportedImageTypes,
+} from '../../lib/chat-attachments';
 import { sendChatMessage } from '../../server/chat';
 
+const receiptOnlyMessage = 'Please log the expense from the attached receipt.';
+
+interface ChatImageInput {
+	data: string;
+	mimeType: string;
+	type: 'image';
+}
+
+interface SelectedReceiptAttachment extends ChatImageInput {
+	id: string;
+	name: string;
+}
+
 interface ChatMessage {
+	attachmentNames?: string[];
 	content: string;
 	id: string;
 	role: 'assistant' | 'user';
@@ -28,12 +48,51 @@ interface ChatMessage {
 
 function createMessage(
 	role: ChatMessage['role'],
-	content: string
+	content: string,
+	attachmentNames?: string[]
 ): ChatMessage {
 	return {
+		attachmentNames,
 		id: crypto.randomUUID(),
 		role,
 		content,
+	};
+}
+
+function readFileAsDataUrl(file: File) {
+	return new Promise<string>((resolve, reject) => {
+		const reader = new FileReader();
+		reader.addEventListener('load', () => {
+			if (typeof reader.result === 'string') {
+				resolve(reader.result);
+				return;
+			}
+
+			reject(new Error('Could not read receipt image.'));
+		});
+		reader.addEventListener('error', () => {
+			reject(reader.error ?? new Error('Could not read receipt image.'));
+		});
+		reader.readAsDataURL(file);
+	});
+}
+
+async function fileToReceiptAttachment(
+	file: File
+): Promise<SelectedReceiptAttachment> {
+	const dataUrl = await readFileAsDataUrl(file);
+	const base64Data = dataUrl.split(',')[1];
+
+	if (!base64Data) {
+		throw new Error('Could not encode receipt image.');
+	}
+
+	return {
+		id: crypto.randomUUID(),
+		name: file.name,
+		type: 'image',
+		data: base64Data,
+		mimeType: file.type,
 	};
 }
 
@@ -41,13 +100,17 @@ export function ChatShell() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const formRef = useRef<HTMLFormElement>(null);
 	const queryClient = useQueryClient();
-	const [files, setFiles] = useState<File[]>([]);
+	const [attachments, setAttachments] = useState<SelectedReceiptAttachment[]>(
+		[]
+	);
 	const [message, setMessage] = useState('');
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 
 	const chatMutation = useMutation({
-		mutationFn: async (content: string) =>
-			await sendChatMessage({ data: { message: content } }),
+		mutationFn: async (input: { content: string; images: ChatImageInput[] }) =>
+			await sendChatMessage({
+				data: { message: input.content, images: input.images },
+			}),
 		onError: () => {
 			toast.error('Could not reach the bookkeeper agent');
 		},
@@ -64,27 +127,74 @@ export function ChatShell() {
 		event.preventDefault();
 
 		const trimmedMessage = message.trim();
+		const selectedAttachments = attachments;
 
-		if (!trimmedMessage) {
+		if (!trimmedMessage && selectedAttachments.length === 0) {
 			return;
-		}
-
-		if (files.length > 0) {
-			toast.info(
-				'Receipt attachments are selected, but receipt processing is next. Sending text only.'
-			);
 		}
 
 		setMessages((currentMessages) => [
 			...currentMessages,
-			createMessage('user', trimmedMessage),
+			createMessage(
+				'user',
+				trimmedMessage,
+				selectedAttachments.map((attachment) => attachment.name)
+			),
 		]);
 		setMessage('');
-		setFiles([]);
-		chatMutation.mutate(trimmedMessage);
+		setAttachments([]);
+		chatMutation.mutate({
+			content: trimmedMessage || receiptOnlyMessage,
+			images: selectedAttachments.map(({ data, mimeType, type }) => ({
+				data,
+				mimeType,
+				type,
+			})),
+		});
 	};
 
-	const canSend = message.trim().length > 0 && !chatMutation.isPending;
+	const canSend =
+		(message.trim().length > 0 || attachments.length > 0) &&
+		!chatMutation.isPending;
+
+	const handleFileChange = async (filesToAttach: FileList | null) => {
+		const selectedFiles = Array.from(filesToAttach ?? []);
+
+		if (selectedFiles.length === 0) {
+			return;
+		}
+
+		const imageFiles = selectedFiles.filter((file) =>
+			isSupportedImageType(file.type)
+		);
+
+		if (imageFiles.length < selectedFiles.length) {
+			toast.info('Only JPEG, PNG, GIF, or WebP receipt images are supported.');
+		}
+
+		const sizedFiles = imageFiles.filter((file) => file.size <= maxImageBytes);
+
+		if (sizedFiles.length < imageFiles.length) {
+			toast.error('Receipt images must be 5MB or smaller.');
+		}
+
+		if (sizedFiles.length === 0) {
+			return;
+		}
+
+		try {
+			const encodedAttachments = await Promise.all(
+				sizedFiles.slice(0, maxAttachments).map(fileToReceiptAttachment)
+			);
+			setAttachments(encodedAttachments);
+
+			if (sizedFiles.length > maxAttachments) {
+				toast.info(`Attached the first ${maxAttachments} receipt images.`);
+			}
+		} catch {
+			toast.error('Could not read one of the receipt images.');
+		}
+	};
 
 	return (
 		<main className="min-h-0 overflow-auto px-4 py-6 md:px-8">
@@ -145,9 +255,30 @@ export function ChatShell() {
 												) : (
 													<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
 												)}
-												<p className="whitespace-pre-wrap text-sm leading-relaxed">
-													{chatMessage.content}
-												</p>
+												<div className="flex flex-col gap-2">
+													{chatMessage.content ? (
+														<p className="whitespace-pre-wrap text-sm leading-relaxed">
+															{chatMessage.content}
+														</p>
+													) : null}
+													{chatMessage.attachmentNames?.length ? (
+														<ul className="flex flex-wrap gap-1.5">
+															{chatMessage.attachmentNames.map(
+																(attachmentName) => (
+																	<li
+																		className="flex items-center gap-1 border border-primary-foreground/20 px-2 py-1 text-primary-foreground/80 text-xs"
+																		key={attachmentName}
+																	>
+																		<PaperclipIcon className="size-3" />
+																		<span className="max-w-40 truncate">
+																			{attachmentName}
+																		</span>
+																	</li>
+																)
+															)}
+														</ul>
+													) : null}
+												</div>
 											</div>
 										</div>
 									))}
@@ -168,22 +299,25 @@ export function ChatShell() {
 							onSubmit={handleSubmit}
 							ref={formRef}
 						>
-							{files.length > 0 ? (
+							{attachments.length > 0 ? (
 								<ul className="flex flex-wrap gap-2">
-									{files.map((file) => (
+									{attachments.map((attachment) => (
 										<li
 											className="flex items-center gap-2 border bg-muted px-3 py-2 text-muted-foreground text-xs"
-											key={`${file.name}-${file.lastModified}`}
+											key={attachment.id}
 										>
 											<PaperclipIcon className="size-3.5" />
-											<span className="max-w-52 truncate">{file.name}</span>
+											<span className="max-w-52 truncate">
+												{attachment.name}
+											</span>
 											<button
-												aria-label={`Remove ${file.name}`}
+												aria-label={`Remove ${attachment.name}`}
 												className="text-muted-foreground transition-colors hover:text-foreground"
 												onClick={() =>
-													setFiles((currentFiles) =>
-														currentFiles.filter(
-															(currentFile) => currentFile !== file
+													setAttachments((currentAttachments) =>
+														currentAttachments.filter(
+															(currentAttachment) =>
+																currentAttachment.id !== attachment.id
 														)
 													)
 												}
@@ -221,12 +355,13 @@ export function ChatShell() {
 								value={message}
 							/>
 							<input
-								accept="image/*,.pdf"
+								accept={supportedImageTypes.join(',')}
 								className="sr-only"
 								multiple
-								onChange={(event) =>
-									setFiles(Array.from(event.target.files ?? []))
-								}
+								onChange={async (event) => {
+									await handleFileChange(event.target.files);
+									event.target.value = '';
+								}}
 								ref={fileInputRef}
 								type="file"
 							/>

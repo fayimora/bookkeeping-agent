@@ -1,10 +1,23 @@
 import { env } from '@bookeeping-agent/env/server';
-import { createFlueClient } from '@flue/sdk';
+import { type AgentPromptImage, createFlueClient } from '@flue/sdk';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import {
+	maxAttachments,
+	maxImageDataLength,
+	supportedImageTypes,
+} from '../lib/chat-attachments';
+
+const chatImageSchema = z.object({
+	type: z.literal('image'),
+	data: z.string().min(1).max(maxImageDataLength),
+	mimeType: z.enum(supportedImageTypes),
+});
+
 const sendChatMessageInputSchema = z.object({
 	message: z.string().trim().min(1).max(4000),
+	images: z.array(chatImageSchema).max(maxAttachments).optional(),
 });
 
 function createBookkeeperClient() {
@@ -33,8 +46,12 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => sendChatMessageInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const client = createBookkeeperClient();
+		const images: AgentPromptImage[] | undefined = data.images?.length
+			? data.images
+			: undefined;
 		const response = await client.agents.prompt('bookkeeper', 'default', {
 			message: data.message,
+			images,
 		});
 
 		return {
