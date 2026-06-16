@@ -1,99 +1,56 @@
-# bookeeping-agent
+# Bookkeeping Agent
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Start, Self, and more.
+A personal bookkeeping app with an AI assistant for entering receipts, managing expenses/categories, and answering spending questions from the ledger.
 
-## Features
+## Stack
 
-- **TypeScript** - For type safety and improved developer experience
-- **TanStack Start** - SSR framework with TanStack Router
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Drizzle** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Biome** - Linting and formatting
-- **Vite+** - Unified Vite toolchain, workspace task runner, linting, and formatting
+- Bun workspaces
+- React + TanStack Start web app
+- Flue agent runtime
+- PostgreSQL + Drizzle
 
-## Getting Started
+## Apps and packages
 
-First, install the dependencies:
+```txt
+apps/web      Web app
+apps/agent    Bookkeeping assistant
+packages/db   Database schema, queries, and seed scripts
+packages/ui   Shared UI components
+packages/env  Environment validation
+```
+
+## Setup
+
+Install dependencies:
 
 ```bash
 bun install
 ```
 
-## Database Setup
+Create an environment file `.mise.local.toml` with the required server variables:
 
-This project uses PostgreSQL with Drizzle ORM.
-
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/web/.env` file with your PostgreSQL connection details.
-
-3. Apply the schema to your database:
-
-```bash
-bun run db:push
+```env
+[env]
+DATABASE_URL=postgres://postgres:postgres@localhost:5434/bookkeeping
+CORS_ORIGIN=http://localhost:3001
+AGENT_MODEL=fireworks/accounts/fireworks/models/kimi-k2p6
+FIREWORKS_API_KEY=sk-xxxxx
 ```
 
-Then, run the development server:
+Start the local database, push the schema, and seed optional sample data:
+
+```bash
+bun run db:start
+bun run db:push
+bun run db:seed
+```
+
+Start development servers:
 
 ```bash
 bun run dev
 ```
 
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
+Web App: <http://localhost:3001>
+Flue API: <http://localhost:3583>
 
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
-```
-
-Import shared components like this:
-
-```tsx
-import { Button } from "@bookeeping-agent/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Git Hooks and Formatting
-
-- Run checks: `bun run check`
-
-## Project Structure
-
-```
-bookeeping-agent/
-├── apps/
-│   └── web/         # Fullstack application (React + TanStack Start)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   └── db/          # Database schema & queries
-```
-
-## Available Scripts
-
-- `bun run dev`: Start all applications in development mode
-- `bun run build`: Build all applications
-- `bun run dev:web`: Start only the web application
-- `bun run check-types`: Check TypeScript types across all apps
-- `bun run db:push`: Push schema changes to database
-- `bun run db:generate`: Generate database client/types
-- `bun run db:migrate`: Run database migrations
-- `bun run db:studio`: Open database studio UI
-- `bun run check`: Run Vite+ format/lint checks and workspace TypeScript checks
-- `bun run lint`: Run Vite+ lint checks
-- `bun run format`: Run Vite+ formatting
-- `bun run staged`: Run Vite+ checks against staged files
