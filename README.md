@@ -29,12 +29,13 @@ bun install
 
 Create an environment file `.mise.local.toml` with the required server variables:
 
-```env
+```toml
 [env]
-DATABASE_URL=postgres://postgres:postgres@localhost:5434/bookkeeping
-CORS_ORIGIN=http://localhost:3001
-AGENT_MODEL=openrouter/moonshotai/kimi-k2.6
-OPENROUTER_API_KEY=sk-or-v1-xxxxx
+DATABASE_URL = "postgres://postgres:postgres@localhost:5434/bookkeeping"
+CORS_ORIGIN = "http://localhost:3001"
+AGENT_MODEL = "openrouter/moonshotai/kimi-k2.6"
+AGENT_OBSERVABILITY = "summary" # off, summary, or verbose
+OPENROUTER_API_KEY = "sk-or-v1-xxxxx"
 ```
 
 Start the local database, push the schema, and seed optional sample data:
@@ -53,4 +54,5 @@ bun run dev
 
 Web App: <http://localhost:3001>
 Flue API: <http://localhost:3583>
+
 
