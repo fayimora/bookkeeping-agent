@@ -1,11 +1,13 @@
 import { Toaster } from '@bookeeping-agent/ui/components/sonner';
+import { TanStackDevtools } from '@tanstack/react-devtools';
+import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools';
 import {
 	createRootRoute,
 	HeadContent,
 	Outlet,
 	Scripts,
 } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
+import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 import Header from '../components/header';
 import appCss from '../index.css?url';
@@ -49,7 +51,20 @@ function RootDocument() {
 						<Outlet />
 					</div>
 					<Toaster richColors />
-					<TanStackRouterDevtools position="bottom-left" />
+					<TanStackDevtools
+						plugins={[
+							{
+								id: 'tanstack-query',
+								name: 'TanStack Query',
+								render: <ReactQueryDevtoolsPanel />,
+							},
+							{
+								id: 'tanstack-router',
+								name: 'TanStack Router',
+								render: <TanStackRouterDevtoolsPanel />,
+							},
+						]}
+					/>
 				</QueryProvider>
 				<Scripts />
 			</body>
