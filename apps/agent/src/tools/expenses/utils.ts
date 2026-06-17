@@ -4,6 +4,7 @@ import type { ListExpensesFilters } from '@bookeeping-agent/db/queries/expenses'
 import type {
 	CreateExpenseToolInput,
 	ListExpensesToolInput,
+	UpdateExpenseToolInput,
 } from './schemas.ts';
 
 export async function resolveExpenseFilters(input: ListExpensesToolInput) {
@@ -32,15 +33,15 @@ export async function resolveExpenseFilters(input: ListExpensesToolInput) {
 	return filters;
 }
 
-export async function resolveExpenseCategoryId(input: CreateExpenseToolInput) {
+export async function resolveExpenseCategoryId(
+	input: CreateExpenseToolInput | UpdateExpenseToolInput
+) {
 	if (input.categoryId) {
 		return input.categoryId;
 	}
 
 	if (!input.categorySlug) {
-		throw new Error(
-			'Provide categoryId or categorySlug before creating an expense.'
-		);
+		throw new Error('Provide categoryId or categorySlug.');
 	}
 
 	const categorySlug = input.categorySlug.trim();

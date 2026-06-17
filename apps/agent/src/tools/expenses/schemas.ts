@@ -1,4 +1,5 @@
 import {
+	boolean,
 	description,
 	type InferOutput,
 	integer,
@@ -51,6 +52,18 @@ export const listExpensesParameters = object({
 
 export type ListExpensesToolInput = InferOutput<typeof listExpensesParameters>;
 
+const expenseIdParameter = pipe(
+	string(),
+	description('Expense UUID.'),
+	minLength(1)
+);
+
+export const getExpenseParameters = object({
+	id: expenseIdParameter,
+});
+
+export type GetExpenseToolInput = InferOutput<typeof getExpenseParameters>;
+
 export const createExpenseParameters = object({
 	vendor: pipe(
 		string(),
@@ -100,4 +113,79 @@ export const createExpenseParameters = object({
 
 export type CreateExpenseToolInput = InferOutput<
 	typeof createExpenseParameters
+>;
+
+export const updateExpenseParameters = object({
+	id: expenseIdParameter,
+	vendor: optional(
+		pipe(
+			string(),
+			description('Updated merchant or vendor name.'),
+			minLength(1),
+			maxLength(200)
+		)
+	),
+	date: optional(
+		pipe(
+			string(),
+			description('Updated expense date in YYYY-MM-DD format.'),
+			regex(datePattern)
+		)
+	),
+	amountCents: optional(
+		pipe(
+			number(),
+			description('Updated amount in minor units, for example £12.50 is 1250.'),
+			integer(),
+			minValue(1)
+		)
+	),
+	currency: optional(
+		pipe(
+			string(),
+			description('Updated three-letter currency code.'),
+			minLength(3),
+			maxLength(3)
+		)
+	),
+	categoryId: optional(
+		pipe(
+			string(),
+			description('Updated category UUID. Use this or categorySlug.')
+		)
+	),
+	categorySlug: optional(
+		pipe(
+			string(),
+			description(
+				'Updated category slug, such as food or travel. Use this or categoryId.'
+			),
+			minLength(1)
+		)
+	),
+	clearCategory: optional(
+		pipe(boolean(), description('Set true to remove the expense category.'))
+	),
+	description: optional(
+		pipe(
+			string(),
+			description('Updated short optional note or description.'),
+			minLength(1)
+		)
+	),
+	clearDescription: optional(
+		pipe(boolean(), description('Set true to remove the expense description.'))
+	),
+});
+
+export type UpdateExpenseToolInput = InferOutput<
+	typeof updateExpenseParameters
+>;
+
+export const deleteExpenseParameters = object({
+	id: expenseIdParameter,
+});
+
+export type DeleteExpenseToolInput = InferOutput<
+	typeof deleteExpenseParameters
 >;
