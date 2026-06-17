@@ -11,13 +11,16 @@
   "dependencies": {
     "@bookeeping-agent/db": "workspace:*",
     "@bookeeping-agent/env": "workspace:*",
+    "@flue/postgres": "1.0.0-beta.1",
     "@flue/runtime": "1.0.0-beta.1",
+    "pg": "^8.17.1",
     "valibot": "^1.1.0"
   },
   "devDependencies": {
     "@bookeeping-agent/config": "workspace:*",
     "@flue/cli": "1.0.0-beta.1",
     "@types/node": "catalog:",
+    "@types/pg": "^8.16.0",
     "typescript": "catalog:"
   }
 }
