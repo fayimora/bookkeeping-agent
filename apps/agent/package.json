@@ -11,12 +11,12 @@
   "dependencies": {
     "@bookeeping-agent/db": "workspace:*",
     "@bookeeping-agent/env": "workspace:*",
-    "@flue/runtime": "^0.11.1",
-    "typebox": "^1.1.38"
+    "@flue/runtime": "1.0.0-beta.1",
+    "valibot": "^1.1.0"
   },
   "devDependencies": {
     "@bookeeping-agent/config": "workspace:*",
-    "@flue/cli": "^0.11.1",
+    "@flue/cli": "1.0.0-beta.1",
     "@types/node": "catalog:",
     "typescript": "catalog:"
   }

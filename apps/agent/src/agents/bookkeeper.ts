@@ -9,13 +9,14 @@ import spendAnalysis from '../skills/spend-analysis/SKILL.md' with {
 };
 import { bookkeeperTools } from '../tools/bookkeeper-tools.ts';
 
+export const description =
+	'Personal bookkeeping assistant for expenses and receipts.';
+
 export const route: AgentRouteHandler = async (_context, next) => {
 	await next();
 };
 
 export default createAgent(() => ({
-	name: 'bookkeeper',
-	description: 'Personal bookkeeping assistant for expenses and receipts.',
 	model: env.AGENT_MODEL,
 	instructions: bookkeeperInstructions,
 	skills: [spendAnalysis, receiptEntry],

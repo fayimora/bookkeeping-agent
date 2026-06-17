@@ -1,3 +1,3 @@
-import { Type } from '@flue/runtime';
+import { object } from 'valibot';
 
-export const listCategoriesParameters = Type.Object({});
+export const listCategoriesParameters = object({});

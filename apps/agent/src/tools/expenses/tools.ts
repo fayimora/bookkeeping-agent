@@ -3,7 +3,6 @@ import {
 	listExpenses,
 } from '@bookeeping-agent/db/queries/expenses';
 import { defineTool, type ToolDefinition } from '@flue/runtime';
-import { Parse } from 'typebox/value';
 
 import {
 	type CreateExpenseToolInput,
@@ -21,8 +20,7 @@ const listExpensesTool = defineTool({
 	description:
 		'List saved expenses, optionally filtered by date range, category, or text search.',
 	parameters: listExpensesParameters,
-	execute: async (args) => {
-		const input = Parse(listExpensesParameters, args);
+	execute: async (input) => {
 		const filters = await resolveExpenseFilters(input);
 		const expenses = await listExpenses(filters);
 
@@ -35,8 +33,7 @@ const getSpendingTotalTool = defineTool({
 	description:
 		'Calculate spending totals from saved expenses, optionally filtered by date range, category, or text search.',
 	parameters: listExpensesParameters,
-	execute: async (args) => {
-		const input = Parse(listExpensesParameters, args);
+	execute: async (input) => {
 		const filters = await resolveExpenseFilters(input);
 		const expenses = await listExpenses(filters);
 		const totalsByCurrency = expenses.reduce<Record<string, number>>(
@@ -65,8 +62,7 @@ const createExpenseTool = defineTool({
 	description:
 		'Create a saved expense after the vendor, date, amount, currency, and category are clear. Amount must be in minor units, such as pence or cents.',
 	parameters: createExpenseParameters,
-	execute: async (args) => {
-		const input: CreateExpenseToolInput = Parse(createExpenseParameters, args);
+	execute: async (input: CreateExpenseToolInput) => {
 		const categoryId = await resolveExpenseCategoryId(input);
 
 		const expense = await createExpense({
