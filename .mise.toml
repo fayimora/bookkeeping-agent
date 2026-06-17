@@ -1,5 +1,5 @@
 [env]
 DATABASE_URL = "postgresql://postgres:password@localhost:5434/bookeeping-agent"
 CORS_ORIGIN = "http://localhost:3000"
-AGENT_MODEL = "fireworks/accounts/fireworks/models/kimi-k2p6"
+AGENT_MODEL = "openrouter/moonshotai/kimi-k2.6"
 FLUE_BASE_URL = "http://localhost:3583"

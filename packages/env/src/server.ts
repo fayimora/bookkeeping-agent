@@ -5,10 +5,7 @@ export const env = createEnv({
 	server: {
 		DATABASE_URL: z.string().min(1),
 		CORS_ORIGIN: z.url(),
-		AGENT_MODEL: z
-			.string()
-			.min(1)
-			.default('fireworks/accounts/fireworks/models/kimi-k2p6'),
+		AGENT_MODEL: z.string().min(1).default('openrouter/moonshotai/kimi-k2.6'),
 		FLUE_BASE_URL: z.url().default('http://localhost:3583'),
 		FLUE_TOKEN: z.string().min(1).optional(),
 		NODE_ENV: z

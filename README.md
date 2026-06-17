@@ -33,8 +33,8 @@ Create an environment file `.mise.local.toml` with the required server variables
 [env]
 DATABASE_URL=postgres://postgres:postgres@localhost:5434/bookkeeping
 CORS_ORIGIN=http://localhost:3001
-AGENT_MODEL=fireworks/accounts/fireworks/models/kimi-k2p6
-FIREWORKS_API_KEY=sk-xxxxx
+AGENT_MODEL=openrouter/moonshotai/kimi-k2.6
+OPENROUTER_API_KEY=sk-or-v1-xxxxx
 ```
 
 Start the local database, push the schema, and seed optional sample data:
