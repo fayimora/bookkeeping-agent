@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: bookkeeping
+      POSTGRES_USER: bookkeeping
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookkeeping -d bookkeeping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: .
+      target: agent
+    environment:
+      PORT: 3583
+      NODE_ENV: production
+      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}@postgres:5432/bookkeeping
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in Dokploy}
+      AGENT_MODEL: ${AGENT_MODEL:-openrouter/moonshotai/kimi-k2.6}
+      AGENT_OBSERVABILITY: ${AGENT_OBSERVABILITY:-off}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in Dokploy}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3583"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: web
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}@postgres:5432/bookkeeping
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in Dokploy}
+      FLUE_BASE_URL: http://agent:3583
+    depends_on:
+      postgres:
+        condition: service_healthy
+      agent:
+        condition: service_started
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
