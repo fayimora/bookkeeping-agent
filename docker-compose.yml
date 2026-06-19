@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: bookkeeping
       POSTGRES_USER: bookkeeping
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,11 +21,11 @@ services:
     environment:
       PORT: 3583
       NODE_ENV: production
-      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}@postgres:5432/bookkeeping
-      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in Dokploy}
+      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD}@postgres:5432/bookkeeping
+      CORS_ORIGIN: ${CORS_ORIGIN}
       AGENT_MODEL: ${AGENT_MODEL:-openrouter/moonshotai/kimi-k2.6}
       AGENT_OBSERVABILITY: ${AGENT_OBSERVABILITY:-off}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:?set OPENROUTER_API_KEY in Dokploy}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,9 +40,10 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: production
-      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in Dokploy}@postgres:5432/bookkeeping
-      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN in Dokploy}
+      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD}@postgres:5432/bookkeeping
+      CORS_ORIGIN: ${CORS_ORIGIN}
       FLUE_BASE_URL: http://agent:3583
+      VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS:-}
     depends_on:
       postgres:
         condition: service_healthy
