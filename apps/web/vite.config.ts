@@ -8,6 +8,9 @@ export default defineConfig({
 	server: {
 		port: 3001,
 	},
+	preview: {
+		allowedHosts: true,
+	},
 	resolve: {
 		tsconfigPaths: true,
 	},
