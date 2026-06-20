@@ -12,23 +12,23 @@ import { PlusIcon } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 
-import { CategoryDialog } from '../components/categories/category-dialog';
-import { CategoryTableState } from '../components/categories/category-table';
-import { DeleteCategoryDialog } from '../components/categories/delete-category-dialog';
+import { CategoryDialog } from '../../components/categories/category-dialog';
+import { CategoryTableState } from '../../components/categories/category-table';
+import { DeleteCategoryDialog } from '../../components/categories/delete-category-dialog';
 import {
 	type Category,
 	type CategoryFormValues,
 	emptyCategoryFormValues,
-} from '../components/categories/types';
-import { toCategoryInput } from '../components/categories/utils';
+} from '../../components/categories/types';
+import { toCategoryInput } from '../../components/categories/utils';
 import {
 	createCategory,
 	deleteCategory,
 	listCategories,
 	updateCategory,
-} from '../server/categories';
+} from '../../server/categories';
 
-export const Route = createFileRoute('/categories')({
+export const Route = createFileRoute('/_authenticated/categories')({
 	component: CategoriesPage,
 });
 

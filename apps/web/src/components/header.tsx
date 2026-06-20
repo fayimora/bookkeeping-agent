@@ -1,6 +1,11 @@
-import { Link } from '@tanstack/react-router';
+import { Button } from '@bookeeping-agent/ui/components/button';
+import { Link, useNavigate } from '@tanstack/react-router';
+
+import { authClient } from '../lib/auth-client';
 
 export default function Header() {
+	const navigate = useNavigate();
+	const session = authClient.useSession();
 	const links = [
 		{ to: '/', label: 'Home' },
 		{ to: '/expenses', label: 'Expenses' },
@@ -8,9 +13,14 @@ export default function Header() {
 		{ to: '/chat', label: 'Chat' },
 	] as const;
 
+	const handleLogout = async () => {
+		await authClient.signOut();
+		await navigate({ to: '/login' });
+	};
+
 	return (
 		<div>
-			<div className="flex flex-row items-center justify-between px-4 py-3 md:px-8">
+			<div className="flex flex-row items-center justify-between gap-4 px-4 py-3 md:px-8">
 				<nav className="flex gap-4 text-sm">
 					{links.map(({ to, label }) => (
 						<Link
@@ -23,7 +33,30 @@ export default function Header() {
 						</Link>
 					))}
 				</nav>
-				<div className="flex items-center gap-2" />
+				<div className="flex items-center gap-3 text-sm">
+					{session.data ? (
+						<>
+							<span className="text-muted-foreground">
+								{session.data.user.name}
+							</span>
+							<Button
+								onClick={handleLogout}
+								size="xs"
+								type="button"
+								variant="outline"
+							>
+								Log out
+							</Button>
+						</>
+					) : (
+						<Link
+							className="text-muted-foreground transition-colors hover:text-foreground"
+							to="/login"
+						>
+							Sign in
+						</Link>
+					)}
+				</div>
 			</div>
 			<hr />
 		</div>

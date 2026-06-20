@@ -7,7 +7,10 @@ import type {
 	UpdateExpenseToolInput,
 } from './schemas.ts';
 
-export async function resolveExpenseFilters(input: ListExpensesToolInput) {
+export async function resolveExpenseFilters(
+	userId: string,
+	input: ListExpensesToolInput
+) {
 	const filters: ListExpensesFilters = {
 		from: input.from,
 		to: input.to,
@@ -21,7 +24,7 @@ export async function resolveExpenseFilters(input: ListExpensesToolInput) {
 
 	if (input.categorySlug) {
 		const categorySlug = input.categorySlug.trim();
-		const category = await getCategoryBySlug(categorySlug);
+		const category = await getCategoryBySlug(userId, categorySlug);
 
 		if (!category) {
 			throw new Error(`Unknown category slug: ${categorySlug}`);
@@ -34,6 +37,7 @@ export async function resolveExpenseFilters(input: ListExpensesToolInput) {
 }
 
 export async function resolveExpenseCategoryId(
+	userId: string,
 	input: CreateExpenseToolInput | UpdateExpenseToolInput
 ) {
 	if (input.categoryId) {
@@ -45,7 +49,7 @@ export async function resolveExpenseCategoryId(
 	}
 
 	const categorySlug = input.categorySlug.trim();
-	const category = await getCategoryBySlug(categorySlug);
+	const category = await getCategoryBySlug(userId, categorySlug);
 
 	if (!category) {
 		throw new Error(`Unknown category slug: ${categorySlug}`);

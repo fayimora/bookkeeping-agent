@@ -19,9 +19,9 @@ export const route: AgentRouteHandler = async (_context, next) => {
 	await next();
 };
 
-export default createAgent(() => ({
+export default createAgent(({ id: userId }) => ({
 	model: env.AGENT_MODEL,
 	instructions: bookkeeperInstructions,
 	skills: [spendAnalysis, receiptEntry],
-	tools: bookkeeperTools,
+	tools: bookkeeperTools(userId),
 }));

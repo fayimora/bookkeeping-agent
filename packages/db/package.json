@@ -21,7 +21,9 @@
     "db:down": "docker compose down"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.6.20",
     "@bookeeping-agent/env": "workspace:*",
+    "better-auth": "^1.6.20",
     "drizzle-orm": "^0.45.1",
     "pg": "^8.17.1",
     "zod": "catalog:"

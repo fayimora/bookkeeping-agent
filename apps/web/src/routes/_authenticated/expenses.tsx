@@ -12,25 +12,28 @@ import { PlusIcon } from 'lucide-react';
 import { type FormEvent, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { DeleteExpenseDialog } from '../components/expenses/delete-expense-dialog';
-import { ExpenseDialog } from '../components/expenses/expense-dialog';
-import { ExpenseTableState } from '../components/expenses/expense-table';
+import { DeleteExpenseDialog } from '../../components/expenses/delete-expense-dialog';
+import { ExpenseDialog } from '../../components/expenses/expense-dialog';
+import { ExpenseTableState } from '../../components/expenses/expense-table';
 import {
 	type Expense,
 	type ExpenseFormValues,
 	emptyFormValues,
 	NO_CATEGORY_VALUE,
-} from '../components/expenses/types';
-import { centsToDecimal, toExpenseInput } from '../components/expenses/utils';
-import { listCategories } from '../server/categories';
+} from '../../components/expenses/types';
+import {
+	centsToDecimal,
+	toExpenseInput,
+} from '../../components/expenses/utils';
+import { listCategories } from '../../server/categories';
 import {
 	createExpense,
 	deleteExpense,
 	listExpenses,
 	updateExpense,
-} from '../server/expenses';
+} from '../../server/expenses';
 
-export const Route = createFileRoute('/expenses')({
+export const Route = createFileRoute('/_authenticated/expenses')({
 	component: ExpensesPage,
 });
 

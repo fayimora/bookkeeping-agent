@@ -11,6 +11,8 @@ import {
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { ensureSession } from '../lib/auth-functions';
+
 const categoryIdInputSchema = z.object({
 	id: z.uuid(),
 });
@@ -25,25 +27,49 @@ const updateCategoryInputSchema = z.object({
 });
 
 export const listCategories = createServerFn({ method: 'GET' }).handler(
-	async () => await listCategoryRecords()
+	async () => {
+		const session = await ensureSession();
+
+		return await listCategoryRecords(session.user.id);
+	}
 );
 
 export const getCategoryById = createServerFn({ method: 'GET' })
 	.validator((data: unknown) => categoryIdInputSchema.parse(data))
-	.handler(async ({ data }) => await getCategoryRecordById(data.id));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await getCategoryRecordById(session.user.id, data.id);
+	});
 
 export const getCategoryBySlug = createServerFn({ method: 'GET' })
 	.validator((data: unknown) => categorySlugInputSchema.parse(data))
-	.handler(async ({ data }) => await getCategoryRecordBySlug(data.slug));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await getCategoryRecordBySlug(session.user.id, data.slug);
+	});
 
 export const createCategory = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => createCategorySchema.parse(data))
-	.handler(async ({ data }) => await createCategoryRecord(data));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await createCategoryRecord(session.user.id, data);
+	});
 
 export const updateCategory = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => updateCategoryInputSchema.parse(data))
-	.handler(async ({ data }) => await updateCategoryRecord(data.id, data.input));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await updateCategoryRecord(session.user.id, data.id, data.input);
+	});
 
 export const deleteCategory = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => categoryIdInputSchema.parse(data))
-	.handler(async ({ data }) => await deleteCategoryRecord(data.id));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await deleteCategoryRecord(session.user.id, data.id);
+	});

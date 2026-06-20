@@ -3,6 +3,7 @@ import { type AgentPromptImage, createFlueClient } from '@flue/sdk';
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { ensureSession } from '../lib/auth-functions';
 import {
 	maxAttachments,
 	maxImageDataLength,
@@ -45,11 +46,13 @@ function getAgentText(result: unknown) {
 export const sendChatMessage = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => sendChatMessageInputSchema.parse(data))
 	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
 		const client = createBookkeeperClient();
 		const images: AgentPromptImage[] | undefined = data.images?.length
 			? data.images
 			: undefined;
-		const response = await client.agents.prompt('bookkeeper', 'default', {
+		const response = await client.agents.prompt('bookkeeper', session.user.id, {
 			message: data.message,
 			images,
 		});

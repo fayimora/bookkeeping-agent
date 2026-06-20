@@ -8,6 +8,13 @@
       "when": 1781469899204,
       "tag": "0000_optimal_emma_frost",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781973348048,
+      "tag": "0001_bored_hellion",
+      "breakpoints": true
     }
   ]
 }

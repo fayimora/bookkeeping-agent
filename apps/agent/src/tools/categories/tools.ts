@@ -28,20 +28,23 @@ function slugifyCategoryName(value: string) {
 		.replace(/^-+|-+$/g, '');
 }
 
-async function resolveCategory(input: GetCategoryToolInput) {
+async function resolveCategory(userId: string, input: GetCategoryToolInput) {
 	if (input.id) {
-		return await getCategoryById(input.id);
+		return await getCategoryById(userId, input.id);
 	}
 
 	if (input.slug) {
-		return await getCategoryBySlug(input.slug.trim());
+		return await getCategoryBySlug(userId, input.slug.trim());
 	}
 
 	throw new Error('Provide category id or slug.');
 }
 
-async function resolveCategoryOrThrow(input: GetCategoryToolInput) {
-	const category = await resolveCategory(input);
+async function resolveCategoryOrThrow(
+	userId: string,
+	input: GetCategoryToolInput
+) {
+	const category = await resolveCategory(userId, input);
 
 	if (!category) {
 		throw new Error('Category not found.');
@@ -50,99 +53,105 @@ async function resolveCategoryOrThrow(input: GetCategoryToolInput) {
 	return category;
 }
 
-const listCategoriesTool = defineTool({
-	name: 'list_categories',
-	description:
-		'List the available expense categories. Use this before creating or updating an expense when you need a valid category.',
-	parameters: listCategoriesParameters,
-	execute: async () => {
-		const categories = await listCategories();
-		return JSON.stringify({ categories });
-	},
-});
+export function categoryTools(userId: string): ToolDefinition[] {
+	const listCategoriesTool = defineTool({
+		name: 'list_categories',
+		description:
+			'List the available expense categories. Use this before creating or updating an expense when you need a valid category.',
+		parameters: listCategoriesParameters,
+		execute: async () => {
+			const categories = await listCategories(userId);
+			return JSON.stringify({ categories });
+		},
+	});
 
-const getCategoryTool = defineTool({
-	name: 'get_category',
-	description: 'Get one expense category by id or slug.',
-	parameters: getCategoryParameters,
-	execute: async (input: GetCategoryToolInput) => {
-		const category = await resolveCategoryOrThrow(input);
-		return JSON.stringify({ category });
-	},
-});
+	const getCategoryTool = defineTool({
+		name: 'get_category',
+		description: 'Get one expense category by id or slug.',
+		parameters: getCategoryParameters,
+		execute: async (input: GetCategoryToolInput) => {
+			const category = await resolveCategoryOrThrow(userId, input);
+			return JSON.stringify({ category });
+		},
+	});
 
-const createCategoryTool = defineTool({
-	name: 'create_category',
-	description:
-		'Create a new expense category after the category name is clear. If slug is omitted, it is generated from the name.',
-	parameters: createCategoryParameters,
-	execute: async (input: CreateCategoryToolInput) => {
-		const name = input.name.trim();
-		const slug = input.slug?.trim() || slugifyCategoryName(name);
+	const createCategoryTool = defineTool({
+		name: 'create_category',
+		description:
+			'Create a new expense category after the category name is clear. If slug is omitted, it is generated from the name.',
+		parameters: createCategoryParameters,
+		execute: async (input: CreateCategoryToolInput) => {
+			const name = input.name.trim();
+			const slug = input.slug?.trim() || slugifyCategoryName(name);
 
-		if (!slug) {
-			throw new Error(
-				'Provide a category slug or a name that can form a slug.'
+			if (!slug) {
+				throw new Error(
+					'Provide a category slug or a name that can form a slug.'
+				);
+			}
+
+			const category = await createCategory(userId, { name, slug });
+			return JSON.stringify({ category });
+		},
+	});
+
+	const updateCategoryTool = defineTool({
+		name: 'update_category',
+		description:
+			'Update an expense category by id or slug after the requested name or slug change is clear.',
+		parameters: updateCategoryParameters,
+		execute: async (input: UpdateCategoryToolInput) => {
+			const existingCategory = await resolveCategoryOrThrow(userId, input);
+			const values: { name?: string; slug?: string } = {};
+
+			if (input.name !== undefined) {
+				values.name = input.name.trim();
+			}
+
+			if (input.newSlug !== undefined) {
+				values.slug = input.newSlug.trim();
+			}
+
+			if (Object.keys(values).length === 0) {
+				throw new Error('Provide a category name or newSlug to update.');
+			}
+
+			const category = await updateCategory(
+				userId,
+				existingCategory.id,
+				values
 			);
-		}
 
-		const category = await createCategory({ name, slug });
-		return JSON.stringify({ category });
-	},
-});
+			if (!category) {
+				throw new Error('Category not found.');
+			}
 
-const updateCategoryTool = defineTool({
-	name: 'update_category',
-	description:
-		'Update an expense category by id or slug after the requested name or slug change is clear.',
-	parameters: updateCategoryParameters,
-	execute: async (input: UpdateCategoryToolInput) => {
-		const existingCategory = await resolveCategoryOrThrow(input);
-		const values: { name?: string; slug?: string } = {};
+			return JSON.stringify({ category });
+		},
+	});
 
-		if (input.name !== undefined) {
-			values.name = input.name.trim();
-		}
+	const deleteCategoryTool = defineTool({
+		name: 'delete_category',
+		description:
+			'Delete an expense category by id or slug only after user confirmation. Existing expenses in this category become uncategorized.',
+		parameters: deleteCategoryParameters,
+		execute: async (input: DeleteCategoryToolInput) => {
+			const existingCategory = await resolveCategoryOrThrow(userId, input);
+			const category = await deleteCategory(userId, existingCategory.id);
 
-		if (input.newSlug !== undefined) {
-			values.slug = input.newSlug.trim();
-		}
+			if (!category) {
+				throw new Error('Category not found.');
+			}
 
-		if (Object.keys(values).length === 0) {
-			throw new Error('Provide a category name or newSlug to update.');
-		}
+			return JSON.stringify({ deletedCategory: category });
+		},
+	});
 
-		const category = await updateCategory(existingCategory.id, values);
-
-		if (!category) {
-			throw new Error('Category not found.');
-		}
-
-		return JSON.stringify({ category });
-	},
-});
-
-const deleteCategoryTool = defineTool({
-	name: 'delete_category',
-	description:
-		'Delete an expense category by id or slug only after user confirmation. Existing expenses in this category become uncategorized.',
-	parameters: deleteCategoryParameters,
-	execute: async (input: DeleteCategoryToolInput) => {
-		const existingCategory = await resolveCategoryOrThrow(input);
-		const category = await deleteCategory(existingCategory.id);
-
-		if (!category) {
-			throw new Error('Category not found.');
-		}
-
-		return JSON.stringify({ deletedCategory: category });
-	},
-});
-
-export const categoryTools: ToolDefinition[] = [
-	listCategoriesTool,
-	getCategoryTool,
-	createCategoryTool,
-	updateCategoryTool,
-	deleteCategoryTool,
-];
+	return [
+		listCategoriesTool,
+		getCategoryTool,
+		createCategoryTool,
+		updateCategoryTool,
+		deleteCategoryTool,
+	];
+}

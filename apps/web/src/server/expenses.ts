@@ -11,6 +11,8 @@ import {
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 
+import { ensureSession } from '../lib/auth-functions';
+
 const expenseIdInputSchema = z.object({
 	id: z.uuid(),
 });
@@ -24,20 +26,40 @@ export const listExpenses = createServerFn({ method: 'GET' })
 	.validator((data: unknown) =>
 		listExpensesFiltersSchema.optional().parse(data)
 	)
-	.handler(async ({ data }) => await listExpenseRecords(data ?? {}));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await listExpenseRecords(session.user.id, data ?? {});
+	});
 
 export const getExpenseById = createServerFn({ method: 'GET' })
 	.validator((data: unknown) => expenseIdInputSchema.parse(data))
-	.handler(async ({ data }) => await getExpenseRecordById(data.id));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await getExpenseRecordById(session.user.id, data.id);
+	});
 
 export const createExpense = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => createExpenseSchema.parse(data))
-	.handler(async ({ data }) => await createExpenseRecord(data));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await createExpenseRecord(session.user.id, data);
+	});
 
 export const updateExpense = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => updateExpenseInputSchema.parse(data))
-	.handler(async ({ data }) => await updateExpenseRecord(data.id, data.input));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await updateExpenseRecord(session.user.id, data.id, data.input);
+	});
 
 export const deleteExpense = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => expenseIdInputSchema.parse(data))
-	.handler(async ({ data }) => await deleteExpenseRecord(data.id));
+	.handler(async ({ data }) => {
+		const session = await ensureSession();
+
+		return await deleteExpenseRecord(session.user.id, data.id);
+	});
