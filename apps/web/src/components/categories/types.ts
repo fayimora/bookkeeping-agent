@@ -1,6 +1,7 @@
+import type { ServerResultData } from '../../lib/result';
 import type { listCategories } from '../../server/categories';
 
-export type Category = Awaited<ReturnType<typeof listCategories>>[number];
+export type Category = ServerResultData<typeof listCategories>[number];
 
 export interface CategoryFormValues {
 	name: string;

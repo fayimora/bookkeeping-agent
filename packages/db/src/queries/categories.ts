@@ -1,7 +1,9 @@
+import { Result } from 'better-result';
 import { and, asc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '..';
+import { dbResult, NotFoundError, parseResult } from '../errors';
 import { categories } from '../schema';
 
 const categoryIdSchema = z.uuid();
@@ -17,92 +19,172 @@ export const updateCategorySchema = createCategorySchema.partial();
 export type CreateCategoryInput = z.input<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.input<typeof updateCategorySchema>;
 
-export async function listCategories(userId: string) {
-	const parsedUserId = userIdSchema.parse(userId);
+export function listCategories(userId: string) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
 
-	return await db
-		.select()
-		.from(categories)
-		.where(eq(categories.userId, parsedUserId))
-		.orderBy(asc(categories.name));
+		const rows = yield* Result.await(
+			dbResult(
+				async () =>
+					await db
+						.select()
+						.from(categories)
+						.where(eq(categories.userId, parsedUserId))
+						.orderBy(asc(categories.name))
+			)
+		);
+
+		return Result.ok(rows);
+	});
 }
 
-export async function getCategoryById(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const categoryId = categoryIdSchema.parse(id);
-	const [category] = await db
-		.select()
-		.from(categories)
-		.where(
-			and(eq(categories.id, categoryId), eq(categories.userId, parsedUserId))
-		)
-		.limit(1);
+export function getCategoryById(userId: string, id: string) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const categoryId = yield* parseResult(() => categoryIdSchema.parse(id));
 
-	return category ?? null;
+		const category = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.select()
+					.from(categories)
+					.where(
+						and(
+							eq(categories.id, categoryId),
+							eq(categories.userId, parsedUserId)
+						)
+					)
+					.limit(1);
+
+				return row ?? null;
+			})
+		);
+
+		return Result.ok(category);
+	});
 }
 
-export async function getCategoryBySlug(userId: string, slug: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const parsedSlug = createCategorySchema.shape.slug.parse(slug);
-	const [category] = await db
-		.select()
-		.from(categories)
-		.where(
-			and(eq(categories.slug, parsedSlug), eq(categories.userId, parsedUserId))
-		)
-		.limit(1);
+export function getCategoryBySlug(userId: string, slug: string) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const parsedSlug = yield* parseResult(() =>
+			createCategorySchema.shape.slug.parse(slug)
+		);
 
-	return category ?? null;
+		const category = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.select()
+					.from(categories)
+					.where(
+						and(
+							eq(categories.slug, parsedSlug),
+							eq(categories.userId, parsedUserId)
+						)
+					)
+					.limit(1);
+
+				return row ?? null;
+			})
+		);
+
+		return Result.ok(category);
+	});
 }
 
-export async function createCategory(
-	userId: string,
-	input: CreateCategoryInput
-) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const values = createCategorySchema.parse(input);
-	const [category] = await db
-		.insert(categories)
-		.values({
-			...values,
-			userId: parsedUserId,
-		})
-		.returning();
+export function createCategory(userId: string, input: CreateCategoryInput) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const values = yield* parseResult(() => createCategorySchema.parse(input));
 
-	return category;
+		const category = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.insert(categories)
+					.values({ ...values, userId: parsedUserId })
+					.returning();
+
+				return row ?? null;
+			})
+		);
+
+		return category
+			? Result.ok(category)
+			: Result.err(
+					new NotFoundError({
+						message: 'Category was not created.',
+						resource: 'category',
+					})
+				);
+	});
 }
 
-export async function updateCategory(
+export function updateCategory(
 	userId: string,
 	id: string,
 	input: UpdateCategoryInput
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const categoryId = categoryIdSchema.parse(id);
-	const values = updateCategorySchema.parse(input);
-	const [category] = await db
-		.update(categories)
-		.set({
-			...values,
-			updatedAt: new Date(),
-		})
-		.where(
-			and(eq(categories.id, categoryId), eq(categories.userId, parsedUserId))
-		)
-		.returning();
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const categoryId = yield* parseResult(() => categoryIdSchema.parse(id));
+		const values = yield* parseResult(() => updateCategorySchema.parse(input));
 
-	return category ?? null;
+		const category = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.update(categories)
+					.set({ ...values, updatedAt: new Date() })
+					.where(
+						and(
+							eq(categories.id, categoryId),
+							eq(categories.userId, parsedUserId)
+						)
+					)
+					.returning();
+
+				return row ?? null;
+			})
+		);
+
+		return category
+			? Result.ok(category)
+			: Result.err(
+					new NotFoundError({
+						message: 'Category not found.',
+						resource: 'category',
+					})
+				);
+	});
 }
 
-export async function deleteCategory(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const categoryId = categoryIdSchema.parse(id);
-	const [category] = await db
-		.delete(categories)
-		.where(
-			and(eq(categories.id, categoryId), eq(categories.userId, parsedUserId))
-		)
-		.returning();
+export function deleteCategory(userId: string, id: string) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const categoryId = yield* parseResult(() => categoryIdSchema.parse(id));
 
-	return category ?? null;
+		const category = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.delete(categories)
+					.where(
+						and(
+							eq(categories.id, categoryId),
+							eq(categories.userId, parsedUserId)
+						)
+					)
+					.returning();
+
+				return row ?? null;
+			})
+		);
+
+		return category
+			? Result.ok(category)
+			: Result.err(
+					new NotFoundError({
+						message: 'Category not found.',
+						resource: 'category',
+					})
+				);
+	});
 }

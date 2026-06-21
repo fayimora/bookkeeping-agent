@@ -13,6 +13,7 @@
     "@bookeeping-agent/env": "workspace:*",
     "@flue/postgres": "1.0.0-beta.1",
     "@flue/runtime": "1.0.0-beta.1",
+    "better-result": "catalog:",
     "pg": "^8.17.1",
     "valibot": "^1.1.0"
   },

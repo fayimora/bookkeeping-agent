@@ -11,7 +11,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 import { type FormEvent, useState } from 'react';
 import { toast } from 'sonner';
-
 import { CategoryDialog } from '../../components/categories/category-dialog';
 import { CategoryTableState } from '../../components/categories/category-table';
 import { DeleteCategoryDialog } from '../../components/categories/delete-category-dialog';
@@ -21,6 +20,7 @@ import {
 	emptyCategoryFormValues,
 } from '../../components/categories/types';
 import { toCategoryInput } from '../../components/categories/utils';
+import { getErrorMessage, unwrapServerResult } from '../../lib/result';
 import {
 	createCategory,
 	deleteCategory,
@@ -45,7 +45,7 @@ function CategoriesPage() {
 
 	const categoriesQuery = useQuery({
 		queryKey: ['categories'],
-		queryFn: async () => await listCategories(),
+		queryFn: async () => unwrapServerResult(await listCategories()),
 	});
 
 	const invalidateCategories = async () => {
@@ -54,8 +54,11 @@ function CategoriesPage() {
 
 	const createMutation = useMutation({
 		mutationFn: async (values: CategoryFormValues) =>
-			await createCategory({ data: toCategoryInput(values) }),
-		onError: () => toast.error('Could not add category'),
+			unwrapServerResult(
+				await createCategory({ data: toCategoryInput(values) })
+			),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, 'Could not add category')),
 		onSuccess: async () => {
 			await invalidateCategories();
 			setDialogOpen(false);
@@ -71,13 +74,16 @@ function CategoriesPage() {
 			id: string;
 			values: CategoryFormValues;
 		}) =>
-			await updateCategory({
-				data: {
-					id,
-					input: toCategoryInput(values),
-				},
-			}),
-		onError: () => toast.error('Could not update category'),
+			unwrapServerResult(
+				await updateCategory({
+					data: {
+						id,
+						input: toCategoryInput(values),
+					},
+				})
+			),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, 'Could not update category')),
 		onSuccess: async () => {
 			await invalidateCategories();
 			setDialogOpen(false);
@@ -88,8 +94,9 @@ function CategoriesPage() {
 
 	const deleteMutation = useMutation({
 		mutationFn: async (category: Category) =>
-			await deleteCategory({ data: { id: category.id } }),
-		onError: () => toast.error('Could not delete category'),
+			unwrapServerResult(await deleteCategory({ data: { id: category.id } })),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, 'Could not delete category')),
 		onSuccess: async () => {
 			await Promise.all([
 				invalidateCategories(),

@@ -1,3 +1,4 @@
+import { parseResult } from '@bookeeping-agent/db/errors';
 import {
 	createCategory as createCategoryRecord,
 	createCategorySchema,
@@ -9,9 +10,10 @@ import {
 	updateCategorySchema,
 } from '@bookeeping-agent/db/queries/categories';
 import { createServerFn } from '@tanstack/react-start';
+import { Result } from 'better-result';
 import { z } from 'zod';
 
-import { ensureSession } from '../lib/auth-functions';
+import { getSessionResult, serializeResult } from './result';
 
 const categoryIdInputSchema = z.object({
 	id: z.uuid(),
@@ -27,49 +29,91 @@ const updateCategoryInputSchema = z.object({
 });
 
 export const listCategories = createServerFn({ method: 'GET' }).handler(
-	async () => {
-		const session = await ensureSession();
+	async () =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const session = yield* Result.await(getSessionResult());
 
-		return await listCategoryRecords(session.user.id);
-	}
+				return await listCategoryRecords(session.user.id);
+			})
+		)
 );
 
 export const getCategoryById = createServerFn({ method: 'GET' })
-	.validator((data: unknown) => categoryIdInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
+	.validator((data: unknown) => data)
+	.handler(async ({ data }) =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const input = yield* parseResult(() =>
+					categoryIdInputSchema.parse(data)
+				);
+				const session = yield* Result.await(getSessionResult());
 
-		return await getCategoryRecordById(session.user.id, data.id);
-	});
+				return await getCategoryRecordById(session.user.id, input.id);
+			})
+		)
+	);
 
 export const getCategoryBySlug = createServerFn({ method: 'GET' })
-	.validator((data: unknown) => categorySlugInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
+	.validator((data: unknown) => data)
+	.handler(async ({ data }) =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const input = yield* parseResult(() =>
+					categorySlugInputSchema.parse(data)
+				);
+				const session = yield* Result.await(getSessionResult());
 
-		return await getCategoryRecordBySlug(session.user.id, data.slug);
-	});
+				return await getCategoryRecordBySlug(session.user.id, input.slug);
+			})
+		)
+	);
 
 export const createCategory = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => createCategorySchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
+	.validator((data: unknown) => data)
+	.handler(async ({ data }) =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const input = yield* parseResult(() =>
+					createCategorySchema.parse(data)
+				);
+				const session = yield* Result.await(getSessionResult());
 
-		return await createCategoryRecord(session.user.id, data);
-	});
+				return await createCategoryRecord(session.user.id, input);
+			})
+		)
+	);
 
 export const updateCategory = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => updateCategoryInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
+	.validator((data: unknown) => data)
+	.handler(async ({ data }) =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const input = yield* parseResult(() =>
+					updateCategoryInputSchema.parse(data)
+				);
+				const session = yield* Result.await(getSessionResult());
 
-		return await updateCategoryRecord(session.user.id, data.id, data.input);
-	});
+				return await updateCategoryRecord(
+					session.user.id,
+					input.id,
+					input.input
+				);
+			})
+		)
+	);
 
 export const deleteCategory = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => categoryIdInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
+	.validator((data: unknown) => data)
+	.handler(async ({ data }) =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const input = yield* parseResult(() =>
+					categoryIdInputSchema.parse(data)
+				);
+				const session = yield* Result.await(getSessionResult());
 
-		return await deleteCategoryRecord(session.user.id, data.id);
-	});
+				return await deleteCategoryRecord(session.user.id, input.id);
+			})
+		)
+	);

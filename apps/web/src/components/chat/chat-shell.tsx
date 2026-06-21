@@ -24,6 +24,7 @@ import {
 	maxImageBytes,
 	supportedImageTypes,
 } from '../../lib/chat-attachments';
+import { getErrorMessage, unwrapServerResult } from '../../lib/result';
 import { sendChatMessage } from '../../server/chat';
 
 const receiptOnlyMessage = 'Please log the expense from the attached receipt.';
@@ -108,11 +109,15 @@ export function ChatShell() {
 
 	const chatMutation = useMutation({
 		mutationFn: async (input: { content: string; images: ChatImageInput[] }) =>
-			await sendChatMessage({
-				data: { message: input.content, images: input.images },
-			}),
-		onError: () => {
-			toast.error('Could not reach the bookkeeper agent');
+			unwrapServerResult(
+				await sendChatMessage({
+					data: { message: input.content, images: input.images },
+				})
+			),
+		onError: (error) => {
+			toast.error(
+				getErrorMessage(error, 'Could not reach the bookkeeper agent')
+			);
 		},
 		onSuccess: async (response) => {
 			setMessages((currentMessages) => [

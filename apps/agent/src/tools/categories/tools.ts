@@ -1,3 +1,4 @@
+import { NotFoundError } from '@bookeeping-agent/db/errors';
 import {
 	createCategory,
 	deleteCategory,
@@ -7,7 +8,9 @@ import {
 	updateCategory,
 } from '@bookeeping-agent/db/queries/categories';
 import { defineTool, type ToolDefinition } from '@flue/runtime';
+import { Result } from 'better-result';
 
+import { ToolInputError, throwToolError, unwrapToolResult } from '../result.ts';
 import {
 	type CreateCategoryToolInput,
 	createCategoryParameters,
@@ -28,29 +31,37 @@ function slugifyCategoryName(value: string) {
 		.replace(/^-+|-+$/g, '');
 }
 
-async function resolveCategory(userId: string, input: GetCategoryToolInput) {
-	if (input.id) {
-		return await getCategoryById(userId, input.id);
-	}
+function resolveCategory(userId: string, input: GetCategoryToolInput) {
+	return Result.gen(async function* () {
+		if (input.id) {
+			return Result.ok(yield* Result.await(getCategoryById(userId, input.id)));
+		}
 
-	if (input.slug) {
-		return await getCategoryBySlug(userId, input.slug.trim());
-	}
+		if (input.slug) {
+			return Result.ok(
+				yield* Result.await(getCategoryBySlug(userId, input.slug.trim()))
+			);
+		}
 
-	throw new Error('Provide category id or slug.');
+		return Result.err(
+			new ToolInputError({ message: 'Provide category id or slug.' })
+		);
+	});
 }
 
-async function resolveCategoryOrThrow(
-	userId: string,
-	input: GetCategoryToolInput
-) {
-	const category = await resolveCategory(userId, input);
+function resolveCategoryOrError(userId: string, input: GetCategoryToolInput) {
+	return Result.gen(async function* () {
+		const category = yield* Result.await(resolveCategory(userId, input));
 
-	if (!category) {
-		throw new Error('Category not found.');
-	}
-
-	return category;
+		return category
+			? Result.ok(category)
+			: Result.err(
+					new NotFoundError({
+						message: 'Category not found.',
+						resource: 'category',
+					})
+				);
+	});
 }
 
 export function categoryTools(userId: string): ToolDefinition[] {
@@ -60,7 +71,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			'List the available expense categories. Use this before creating or updating an expense when you need a valid category.',
 		parameters: listCategoriesParameters,
 		execute: async () => {
-			const categories = await listCategories(userId);
+			const categories = unwrapToolResult(await listCategories(userId));
 			return JSON.stringify({ categories });
 		},
 	});
@@ -70,7 +81,9 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		description: 'Get one expense category by id or slug.',
 		parameters: getCategoryParameters,
 		execute: async (input: GetCategoryToolInput) => {
-			const category = await resolveCategoryOrThrow(userId, input);
+			const category = unwrapToolResult(
+				await resolveCategoryOrError(userId, input)
+			);
 			return JSON.stringify({ category });
 		},
 	});
@@ -85,12 +98,16 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			const slug = input.slug?.trim() || slugifyCategoryName(name);
 
 			if (!slug) {
-				throw new Error(
-					'Provide a category slug or a name that can form a slug.'
+				throwToolError(
+					new ToolInputError({
+						message: 'Provide a category slug or a name that can form a slug.',
+					})
 				);
 			}
 
-			const category = await createCategory(userId, { name, slug });
+			const category = unwrapToolResult(
+				await createCategory(userId, { name, slug })
+			);
 			return JSON.stringify({ category });
 		},
 	});
@@ -101,7 +118,9 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			'Update an expense category by id or slug after the requested name or slug change is clear.',
 		parameters: updateCategoryParameters,
 		execute: async (input: UpdateCategoryToolInput) => {
-			const existingCategory = await resolveCategoryOrThrow(userId, input);
+			const existingCategory = unwrapToolResult(
+				await resolveCategoryOrError(userId, input)
+			);
 			const values: { name?: string; slug?: string } = {};
 
 			if (input.name !== undefined) {
@@ -113,18 +132,16 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			}
 
 			if (Object.keys(values).length === 0) {
-				throw new Error('Provide a category name or newSlug to update.');
+				throwToolError(
+					new ToolInputError({
+						message: 'Provide a category name or newSlug to update.',
+					})
+				);
 			}
 
-			const category = await updateCategory(
-				userId,
-				existingCategory.id,
-				values
+			const category = unwrapToolResult(
+				await updateCategory(userId, existingCategory.id, values)
 			);
-
-			if (!category) {
-				throw new Error('Category not found.');
-			}
 
 			return JSON.stringify({ category });
 		},
@@ -136,12 +153,12 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			'Delete an expense category by id or slug only after user confirmation. Existing expenses in this category become uncategorized.',
 		parameters: deleteCategoryParameters,
 		execute: async (input: DeleteCategoryToolInput) => {
-			const existingCategory = await resolveCategoryOrThrow(userId, input);
-			const category = await deleteCategory(userId, existingCategory.id);
-
-			if (!category) {
-				throw new Error('Category not found.');
-			}
+			const existingCategory = unwrapToolResult(
+				await resolveCategoryOrError(userId, input)
+			);
+			const category = unwrapToolResult(
+				await deleteCategory(userId, existingCategory.id)
+			);
 
 			return JSON.stringify({ deletedCategory: category });
 		},

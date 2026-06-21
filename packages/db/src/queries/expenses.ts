@@ -1,7 +1,14 @@
+import { Result } from 'better-result';
 import { and, desc, eq, gte, ilike, lte, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { db } from '..';
+import {
+	CategoryOwnershipError,
+	dbResult,
+	NotFoundError,
+	parseResult,
+} from '../errors';
 import { categories, expenses } from '../schema';
 
 const expenseIdSchema = z.uuid();
@@ -35,120 +42,204 @@ export type CreateExpenseInput = z.input<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.input<typeof updateExpenseSchema>;
 export type ListExpensesFilters = z.input<typeof listExpensesFiltersSchema>;
 
-async function ensureCategoryBelongsToUser(userId: string, categoryId: string) {
-	const [category] = await db
-		.select({ id: categories.id })
-		.from(categories)
-		.where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
-		.limit(1);
+function ensureCategoryBelongsToUser(userId: string, categoryId: string) {
+	return Result.gen(async function* () {
+		const category = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.select({ id: categories.id })
+					.from(categories)
+					.where(
+						and(eq(categories.id, categoryId), eq(categories.userId, userId))
+					)
+					.limit(1);
 
-	if (!category) {
-		throw new Error('Category does not belong to the authenticated user.');
-	}
+				return row ?? null;
+			})
+		);
+
+		return category
+			? Result.ok()
+			: Result.err(
+					new CategoryOwnershipError({
+						message: 'Category does not belong to the authenticated user.',
+					})
+				);
+	});
 }
 
-export async function listExpenses(
+export function listExpenses(
 	userId: string,
 	filters: ListExpensesFilters = {}
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const parsedFilters = listExpensesFiltersSchema.parse(filters);
-	const conditions: SQL[] = [eq(expenses.userId, parsedUserId)];
-
-	if (parsedFilters.categoryId) {
-		conditions.push(eq(expenses.categoryId, parsedFilters.categoryId));
-	}
-
-	if (parsedFilters.from) {
-		conditions.push(gte(expenses.date, parsedFilters.from));
-	}
-
-	if (parsedFilters.to) {
-		conditions.push(lte(expenses.date, parsedFilters.to));
-	}
-
-	if (parsedFilters.search) {
-		const searchPattern = `%${parsedFilters.search}%`;
-		const searchCondition = or(
-			ilike(expenses.vendor, searchPattern),
-			ilike(expenses.description, searchPattern)
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const parsedFilters = yield* parseResult(() =>
+			listExpensesFiltersSchema.parse(filters)
 		);
 
-		if (searchCondition) {
-			conditions.push(searchCondition);
+		const rows = yield* Result.await(
+			dbResult(async () => {
+				const conditions: SQL[] = [eq(expenses.userId, parsedUserId)];
+
+				if (parsedFilters.categoryId) {
+					conditions.push(eq(expenses.categoryId, parsedFilters.categoryId));
+				}
+
+				if (parsedFilters.from) {
+					conditions.push(gte(expenses.date, parsedFilters.from));
+				}
+
+				if (parsedFilters.to) {
+					conditions.push(lte(expenses.date, parsedFilters.to));
+				}
+
+				if (parsedFilters.search) {
+					const searchPattern = `%${parsedFilters.search}%`;
+					const searchCondition = or(
+						ilike(expenses.vendor, searchPattern),
+						ilike(expenses.description, searchPattern)
+					);
+
+					if (searchCondition) {
+						conditions.push(searchCondition);
+					}
+				}
+
+				return await db
+					.select()
+					.from(expenses)
+					.where(and(...conditions))
+					.orderBy(desc(expenses.date), desc(expenses.createdAt));
+			})
+		);
+
+		return Result.ok(rows);
+	});
+}
+
+export function getExpenseById(userId: string, id: string) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const expenseId = yield* parseResult(() => expenseIdSchema.parse(id));
+
+		const expense = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.select()
+					.from(expenses)
+					.where(
+						and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId))
+					)
+					.limit(1);
+
+				return row ?? null;
+			})
+		);
+
+		return Result.ok(expense);
+	});
+}
+
+export function createExpense(userId: string, input: CreateExpenseInput) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const values = yield* parseResult(() => createExpenseSchema.parse(input));
+
+		if (values.categoryId) {
+			yield* Result.await(
+				ensureCategoryBelongsToUser(parsedUserId, values.categoryId)
+			);
 		}
-	}
 
-	return await db
-		.select()
-		.from(expenses)
-		.where(and(...conditions))
-		.orderBy(desc(expenses.date), desc(expenses.createdAt));
+		const expense = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.insert(expenses)
+					.values({ ...values, userId: parsedUserId })
+					.returning();
+
+				return row ?? null;
+			})
+		);
+
+		return expense
+			? Result.ok(expense)
+			: Result.err(
+					new NotFoundError({
+						message: 'Expense was not created.',
+						resource: 'expense',
+					})
+				);
+	});
 }
 
-export async function getExpenseById(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const expenseId = expenseIdSchema.parse(id);
-	const [expense] = await db
-		.select()
-		.from(expenses)
-		.where(and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId)))
-		.limit(1);
-
-	return expense ?? null;
-}
-
-export async function createExpense(userId: string, input: CreateExpenseInput) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const values = createExpenseSchema.parse(input);
-
-	if (values.categoryId) {
-		await ensureCategoryBelongsToUser(parsedUserId, values.categoryId);
-	}
-
-	const [expense] = await db
-		.insert(expenses)
-		.values({
-			...values,
-			userId: parsedUserId,
-		})
-		.returning();
-
-	return expense;
-}
-
-export async function updateExpense(
+export function updateExpense(
 	userId: string,
 	id: string,
 	input: UpdateExpenseInput
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const expenseId = expenseIdSchema.parse(id);
-	const values = updateExpenseSchema.parse(input);
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const expenseId = yield* parseResult(() => expenseIdSchema.parse(id));
+		const values = yield* parseResult(() => updateExpenseSchema.parse(input));
 
-	if (values.categoryId) {
-		await ensureCategoryBelongsToUser(parsedUserId, values.categoryId);
-	}
+		if (values.categoryId) {
+			yield* Result.await(
+				ensureCategoryBelongsToUser(parsedUserId, values.categoryId)
+			);
+		}
 
-	const [expense] = await db
-		.update(expenses)
-		.set({
-			...values,
-			updatedAt: new Date(),
-		})
-		.where(and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId)))
-		.returning();
+		const expense = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.update(expenses)
+					.set({ ...values, updatedAt: new Date() })
+					.where(
+						and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId))
+					)
+					.returning();
 
-	return expense ?? null;
+				return row ?? null;
+			})
+		);
+
+		return expense
+			? Result.ok(expense)
+			: Result.err(
+					new NotFoundError({
+						message: 'Expense not found.',
+						resource: 'expense',
+					})
+				);
+	});
 }
 
-export async function deleteExpense(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const expenseId = expenseIdSchema.parse(id);
-	const [expense] = await db
-		.delete(expenses)
-		.where(and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId)))
-		.returning();
+export function deleteExpense(userId: string, id: string) {
+	return Result.gen(async function* () {
+		const parsedUserId = yield* parseResult(() => userIdSchema.parse(userId));
+		const expenseId = yield* parseResult(() => expenseIdSchema.parse(id));
 
-	return expense ?? null;
+		const expense = yield* Result.await(
+			dbResult(async () => {
+				const [row] = await db
+					.delete(expenses)
+					.where(
+						and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId))
+					)
+					.returning();
+
+				return row ?? null;
+			})
+		);
+
+		return expense
+			? Result.ok(expense)
+			: Result.err(
+					new NotFoundError({
+						message: 'Expense not found.',
+						resource: 'expense',
+					})
+				);
+	});
 }

@@ -1,14 +1,21 @@
+import { parseResult } from '@bookeeping-agent/db/errors';
 import { env } from '@bookeeping-agent/env/server';
 import { type AgentPromptImage, createFlueClient } from '@flue/sdk';
 import { createServerFn } from '@tanstack/react-start';
+import { Result } from 'better-result';
 import { z } from 'zod';
 
-import { ensureSession } from '../lib/auth-functions';
 import {
 	maxAttachments,
 	maxImageDataLength,
 	supportedImageTypes,
 } from '../lib/chat-attachments';
+import {
+	AgentUnavailableError,
+	getSessionResult,
+	serializeResult,
+	UnexpectedAgentResponseError,
+} from './result';
 
 const chatImageSchema = z.object({
 	type: z.literal('image'),
@@ -30,34 +37,58 @@ function createBookkeeperClient() {
 
 function getAgentText(result: unknown) {
 	if (typeof result === 'string') {
-		return result;
+		return Result.ok(result);
 	}
 
-	// flue returns result as unknown and that's pretty annoyingto work with
+	// flue returns result as unknown and that's pretty annoying to work with
 	const text = (result as { text?: unknown } | null)?.text;
 
 	if (typeof text === 'string') {
-		return text;
+		return Result.ok(text);
 	}
 
-	throw new Error('Bookkeeper agent returned an unexpected response shape.');
+	return Result.err(
+		new UnexpectedAgentResponseError({
+			message: 'Bookkeeper agent returned an unexpected response shape.',
+		})
+	);
 }
 
 export const sendChatMessage = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => sendChatMessageInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
+	.validator((data: unknown) => data)
+	.handler(async ({ data }) =>
+		serializeResult(
+			await Result.gen(async function* () {
+				const input = yield* parseResult(() =>
+					sendChatMessageInputSchema.parse(data)
+				);
+				const session = yield* Result.await(getSessionResult());
 
-		const client = createBookkeeperClient();
-		const images: AgentPromptImage[] | undefined = data.images?.length
-			? data.images
-			: undefined;
-		const response = await client.agents.prompt('bookkeeper', session.user.id, {
-			message: data.message,
-			images,
-		});
+				const client = createBookkeeperClient();
+				const images: AgentPromptImage[] | undefined = input.images?.length
+					? input.images
+					: undefined;
 
-		return {
-			message: getAgentText(response.result),
-		};
-	});
+				const response = yield* Result.await(
+					Result.tryPromise({
+						try: () =>
+							client.agents.prompt('bookkeeper', session.user.id, {
+								message: input.message,
+								images,
+							}),
+						catch: (cause) =>
+							new AgentUnavailableError({
+								message:
+									cause instanceof Error
+										? cause.message
+										: 'Could not reach the bookkeeper agent.',
+							}),
+					})
+				);
+
+				const message = yield* getAgentText(response.result);
+
+				return Result.ok({ message });
+			})
+		)
+	);

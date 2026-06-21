@@ -1,3 +1,4 @@
+import { NotFoundError } from '@bookeeping-agent/db/errors';
 import {
 	createExpense,
 	deleteExpense,
@@ -6,7 +7,9 @@ import {
 	updateExpense,
 } from '@bookeeping-agent/db/queries/expenses';
 import { defineTool, type ToolDefinition } from '@flue/runtime';
+import { Result } from 'better-result';
 
+import { ToolInputError, throwToolError, unwrapToolResult } from '../result.ts';
 import {
 	type CreateExpenseToolInput,
 	createExpenseParameters,
@@ -37,83 +40,95 @@ function hasValue<T>(value: T | undefined): value is T {
 	return value !== undefined;
 }
 
-async function getCategoryUpdate(
-	userId: string,
-	input: UpdateExpenseToolInput
-): Promise<Pick<UpdateExpenseValues, 'categoryId'>> {
-	if (
-		input.clearCategory &&
-		(input.categoryId !== undefined || input.categorySlug !== undefined)
-	) {
-		throw new Error('Use clearCategory or a category value, not both.');
-	}
+function getCategoryUpdate(userId: string, input: UpdateExpenseToolInput) {
+	return Result.gen(async function* () {
+		if (
+			input.clearCategory &&
+			(input.categoryId !== undefined || input.categorySlug !== undefined)
+		) {
+			return Result.err(
+				new ToolInputError({
+					message: 'Use clearCategory or a category value, not both.',
+				})
+			);
+		}
 
-	if (input.clearCategory) {
-		return { categoryId: null };
-	}
+		const update: Pick<UpdateExpenseValues, 'categoryId'> = {};
 
-	if (hasValue(input.categoryId)) {
-		return { categoryId: input.categoryId };
-	}
+		if (input.clearCategory) {
+			update.categoryId = null;
+		} else if (hasValue(input.categoryId)) {
+			update.categoryId = input.categoryId;
+		} else if (hasValue(input.categorySlug)) {
+			update.categoryId = yield* Result.await(
+				resolveExpenseCategoryId(userId, input)
+			);
+		}
 
-	if (hasValue(input.categorySlug)) {
-		return { categoryId: await resolveExpenseCategoryId(userId, input) };
-	}
-
-	return {};
+		return Result.ok(update);
+	});
 }
 
-function getDescriptionUpdate(
-	input: UpdateExpenseToolInput
-): Pick<UpdateExpenseValues, 'description'> {
+function getDescriptionUpdate(input: UpdateExpenseToolInput) {
 	if (input.clearDescription && input.description !== undefined) {
-		throw new Error('Use clearDescription or description, not both.');
+		return Result.err(
+			new ToolInputError({
+				message: 'Use clearDescription or description, not both.',
+			})
+		);
 	}
+
+	const update: Pick<UpdateExpenseValues, 'description'> = {};
 
 	if (input.clearDescription) {
-		return { description: null };
+		update.description = null;
+	} else if (hasValue(input.description)) {
+		update.description = input.description.trim();
 	}
 
-	if (hasValue(input.description)) {
-		return { description: input.description.trim() };
-	}
-
-	return {};
+	return Result.ok(update);
 }
 
-async function buildUpdateExpenseValues(
+function buildUpdateExpenseValues(
 	userId: string,
 	input: UpdateExpenseToolInput
 ) {
-	const values: UpdateExpenseValues = {};
+	return Result.gen(async function* () {
+		const values: UpdateExpenseValues = {};
 
-	if (hasValue(input.vendor)) {
-		values.vendor = input.vendor.trim();
-	}
+		if (hasValue(input.vendor)) {
+			values.vendor = input.vendor.trim();
+		}
 
-	if (hasValue(input.date)) {
-		values.date = input.date;
-	}
+		if (hasValue(input.date)) {
+			values.date = input.date;
+		}
 
-	if (hasValue(input.amountCents)) {
-		values.amountCents = input.amountCents;
-	}
+		if (hasValue(input.amountCents)) {
+			values.amountCents = input.amountCents;
+		}
 
-	if (hasValue(input.currency)) {
-		values.currency = input.currency.trim().toUpperCase();
-	}
+		if (hasValue(input.currency)) {
+			values.currency = input.currency.trim().toUpperCase();
+		}
 
-	Object.assign(
-		values,
-		await getCategoryUpdate(userId, input),
-		getDescriptionUpdate(input)
-	);
+		const categoryUpdate = yield* Result.await(
+			getCategoryUpdate(userId, input)
+		);
+		const descriptionUpdate = yield* getDescriptionUpdate(input);
 
-	if (Object.keys(values).length === 0) {
-		throw new Error('Provide at least one expense field to update.');
-	}
+		Object.assign(values, categoryUpdate, descriptionUpdate);
 
-	return values;
+		if (Object.keys(values).length === 0) {
+			return Result.err(
+				new ToolInputError({
+					message: 'Provide at least one expense field to update.',
+				})
+			);
+		}
+
+		return Result.ok(values);
+	});
 }
 
 export function expenseTools(userId: string): ToolDefinition[] {
@@ -123,8 +138,10 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'List saved expenses, optionally filtered by date range, category, or text search.',
 		parameters: listExpensesParameters,
 		execute: async (input) => {
-			const filters = await resolveExpenseFilters(userId, input);
-			const expenses = await listExpenses(userId, filters);
+			const filters = unwrapToolResult(
+				await resolveExpenseFilters(userId, input)
+			);
+			const expenses = unwrapToolResult(await listExpenses(userId, filters));
 
 			return JSON.stringify({ count: expenses.length, expenses });
 		},
@@ -135,10 +152,15 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		description: 'Get one saved expense by id.',
 		parameters: getExpenseParameters,
 		execute: async (input: GetExpenseToolInput) => {
-			const expense = await getExpenseById(userId, input.id);
+			const expense = unwrapToolResult(await getExpenseById(userId, input.id));
 
 			if (!expense) {
-				throw new Error('Expense not found.');
+				throwToolError(
+					new NotFoundError({
+						message: 'Expense not found.',
+						resource: 'expense',
+					})
+				);
 			}
 
 			return JSON.stringify({ expense });
@@ -151,8 +173,10 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'Calculate spending totals from saved expenses, optionally filtered by date range, category, or text search.',
 		parameters: listExpensesParameters,
 		execute: async (input) => {
-			const filters = await resolveExpenseFilters(userId, input);
-			const expenses = await listExpenses(userId, filters);
+			const filters = unwrapToolResult(
+				await resolveExpenseFilters(userId, input)
+			);
+			const expenses = unwrapToolResult(await listExpenses(userId, filters));
 			const totalsByCurrency = expenses.reduce<Record<string, number>>(
 				(totals, expense) => {
 					totals[expense.currency] =
@@ -180,16 +204,20 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'Create a saved expense after the vendor, date, amount, currency, and category are clear. Amount must be in minor units, such as pence or cents.',
 		parameters: createExpenseParameters,
 		execute: async (input: CreateExpenseToolInput) => {
-			const categoryId = await resolveExpenseCategoryId(userId, input);
+			const categoryId = unwrapToolResult(
+				await resolveExpenseCategoryId(userId, input)
+			);
 
-			const expense = await createExpense(userId, {
-				vendor: input.vendor.trim(),
-				date: input.date,
-				amountCents: input.amountCents,
-				currency: input.currency?.trim().toUpperCase() ?? 'GBP',
-				categoryId,
-				description: input.description?.trim(),
-			});
+			const expense = unwrapToolResult(
+				await createExpense(userId, {
+					vendor: input.vendor.trim(),
+					date: input.date,
+					amountCents: input.amountCents,
+					currency: input.currency?.trim().toUpperCase() ?? 'GBP',
+					categoryId,
+					description: input.description?.trim(),
+				})
+			);
 
 			return JSON.stringify({ expense });
 		},
@@ -201,12 +229,12 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'Update a saved expense by id after the requested field changes are clear. Amount must be in minor units, such as pence or cents.',
 		parameters: updateExpenseParameters,
 		execute: async (input: UpdateExpenseToolInput) => {
-			const values = await buildUpdateExpenseValues(userId, input);
-			const expense = await updateExpense(userId, input.id, values);
-
-			if (!expense) {
-				throw new Error('Expense not found.');
-			}
+			const values = unwrapToolResult(
+				await buildUpdateExpenseValues(userId, input)
+			);
+			const expense = unwrapToolResult(
+				await updateExpense(userId, input.id, values)
+			);
 
 			return JSON.stringify({ expense });
 		},
@@ -217,11 +245,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		description: 'Delete a saved expense by id only after user confirmation.',
 		parameters: deleteExpenseParameters,
 		execute: async (input: DeleteExpenseToolInput) => {
-			const expense = await deleteExpense(userId, input.id);
-
-			if (!expense) {
-				throw new Error('Expense not found.');
-			}
+			const expense = unwrapToolResult(await deleteExpense(userId, input.id));
 
 			return JSON.stringify({ deletedExpense: expense });
 		},

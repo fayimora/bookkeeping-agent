@@ -1,8 +1,9 @@
+import type { ServerResultData } from '../../lib/result';
 import type { listCategories } from '../../server/categories';
 import type { listExpenses } from '../../server/expenses';
 
-export type Expense = Awaited<ReturnType<typeof listExpenses>>[number];
-export type Category = Awaited<ReturnType<typeof listCategories>>[number];
+export type Expense = ServerResultData<typeof listExpenses>[number];
+export type Category = ServerResultData<typeof listCategories>[number];
 
 export interface ExpenseFormValues {
 	amount: string;

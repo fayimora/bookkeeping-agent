@@ -11,7 +11,6 @@ import { createFileRoute } from '@tanstack/react-router';
 import { PlusIcon } from 'lucide-react';
 import { type FormEvent, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-
 import { DeleteExpenseDialog } from '../../components/expenses/delete-expense-dialog';
 import { ExpenseDialog } from '../../components/expenses/expense-dialog';
 import { ExpenseTableState } from '../../components/expenses/expense-table';
@@ -25,6 +24,7 @@ import {
 	centsToDecimal,
 	toExpenseInput,
 } from '../../components/expenses/utils';
+import { getErrorMessage, unwrapServerResult } from '../../lib/result';
 import { listCategories } from '../../server/categories';
 import {
 	createExpense,
@@ -47,12 +47,12 @@ function ExpensesPage() {
 
 	const categoriesQuery = useQuery({
 		queryKey: ['categories'],
-		queryFn: async () => await listCategories(),
+		queryFn: async () => unwrapServerResult(await listCategories()),
 	});
 
 	const expensesQuery = useQuery({
 		queryKey: ['expenses'],
-		queryFn: async () => await listExpenses({ data: {} }),
+		queryFn: async () => unwrapServerResult(await listExpenses({ data: {} })),
 	});
 
 	const categoriesById = useMemo(
@@ -69,8 +69,9 @@ function ExpensesPage() {
 
 	const createMutation = useMutation({
 		mutationFn: async (values: ExpenseFormValues) =>
-			await createExpense({ data: toExpenseInput(values) }),
-		onError: () => toast.error('Could not add expense'),
+			unwrapServerResult(await createExpense({ data: toExpenseInput(values) })),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, 'Could not add expense')),
 		onSuccess: async () => {
 			await invalidateExpenses();
 			setDialogOpen(false);
@@ -86,13 +87,16 @@ function ExpensesPage() {
 			id: string;
 			values: ExpenseFormValues;
 		}) =>
-			await updateExpense({
-				data: {
-					id,
-					input: toExpenseInput(values),
-				},
-			}),
-		onError: () => toast.error('Could not update expense'),
+			unwrapServerResult(
+				await updateExpense({
+					data: {
+						id,
+						input: toExpenseInput(values),
+					},
+				})
+			),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, 'Could not update expense')),
 		onSuccess: async () => {
 			await invalidateExpenses();
 			setDialogOpen(false);
@@ -103,8 +107,9 @@ function ExpensesPage() {
 
 	const deleteMutation = useMutation({
 		mutationFn: async (expense: Expense) =>
-			await deleteExpense({ data: { id: expense.id } }),
-		onError: () => toast.error('Could not delete expense'),
+			unwrapServerResult(await deleteExpense({ data: { id: expense.id } })),
+		onError: (error) =>
+			toast.error(getErrorMessage(error, 'Could not delete expense')),
 		onSuccess: async () => {
 			await invalidateExpenses();
 			setExpenseToDelete(null);
