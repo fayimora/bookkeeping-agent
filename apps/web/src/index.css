@@ -1,1 +1,70 @@
 @import "@bookeeping-agent/ui/globals.css";
+
+@layer components {
+	.assistant-markdown {
+		overflow-wrap: anywhere;
+		@apply text-sm leading-relaxed;
+	}
+
+	.assistant-markdown > :first-child {
+		@apply mt-0;
+	}
+
+	.assistant-markdown > :last-child {
+		@apply mb-0;
+	}
+
+	.assistant-markdown a {
+		@apply underline underline-offset-2;
+	}
+
+	.assistant-markdown blockquote {
+		@apply my-2 border-border border-l-2 pl-3 text-muted-foreground;
+	}
+
+	.assistant-markdown code {
+		@apply rounded-sm bg-background px-1 py-0.5;
+	}
+
+	.assistant-markdown h1,
+	.assistant-markdown h2,
+	.assistant-markdown h3,
+	.assistant-markdown h4,
+	.assistant-markdown h5,
+	.assistant-markdown h6 {
+		@apply my-2 font-semibold;
+	}
+
+	.assistant-markdown li {
+		@apply my-1;
+	}
+
+	.assistant-markdown ol {
+		@apply my-2 list-decimal pl-5;
+	}
+
+	.assistant-markdown p {
+		@apply my-2;
+	}
+
+	.assistant-markdown pre {
+		@apply my-2 overflow-x-auto border bg-background p-3;
+	}
+
+	.assistant-markdown pre code {
+		@apply bg-transparent p-0;
+	}
+
+	.assistant-markdown table {
+		@apply my-2 w-full border-collapse;
+	}
+
+	.assistant-markdown td,
+	.assistant-markdown th {
+		@apply border px-2 py-1;
+	}
+
+	.assistant-markdown ul {
+		@apply my-2 list-disc pl-5;
+	}
+}

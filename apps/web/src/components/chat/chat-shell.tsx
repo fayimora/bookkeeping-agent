@@ -42,6 +42,7 @@ interface SelectedReceiptAttachment extends ChatImageInput {
 interface ChatMessage {
 	attachmentNames?: string[];
 	content: string;
+	html?: string;
 	id: string;
 	role: 'assistant' | 'user';
 }
@@ -49,14 +50,42 @@ interface ChatMessage {
 function createMessage(
 	role: ChatMessage['role'],
 	content: string,
-	attachmentNames?: string[]
+	attachmentNames?: string[],
+	html?: string
 ): ChatMessage {
 	return {
 		attachmentNames,
 		id: crypto.randomUUID(),
 		role,
 		content,
+		html,
 	};
+}
+
+function AssistantMarkdown({ html }: { html: string }) {
+	return (
+		<div
+			className="assistant-markdown"
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: The server renders Markdown with Sätteri and sanitizes it before it reaches React.
+			dangerouslySetInnerHTML={{ __html: html }}
+		/>
+	);
+}
+
+function ChatMessageContent({ chatMessage }: { chatMessage: ChatMessage }) {
+	if (chatMessage.html) {
+		return <AssistantMarkdown html={chatMessage.html} />;
+	}
+
+	if (!chatMessage.content) {
+		return null;
+	}
+
+	return (
+		<p className="whitespace-pre-wrap text-sm leading-relaxed">
+			{chatMessage.content}
+		</p>
+	);
 }
 
 function readFileAsDataUrl(file: File) {
@@ -117,7 +146,12 @@ export function ChatShell() {
 		onSuccess: async (response) => {
 			setMessages((currentMessages) => [
 				...currentMessages,
-				createMessage('assistant', response.message),
+				createMessage(
+					'assistant',
+					response.message,
+					undefined,
+					response.messageHtml
+				),
 			]);
 			await queryClient.invalidateQueries({ queryKey: ['expenses'] });
 		},
@@ -256,11 +290,7 @@ export function ChatShell() {
 													<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
 												)}
 												<div className="flex flex-col gap-2">
-													{chatMessage.content ? (
-														<p className="whitespace-pre-wrap text-sm leading-relaxed">
-															{chatMessage.content}
-														</p>
-													) : null}
+													<ChatMessageContent chatMessage={chatMessage} />
 													{chatMessage.attachmentNames?.length ? (
 														<ul className="flex flex-wrap gap-1.5">
 															{chatMessage.attachmentNames.map(
