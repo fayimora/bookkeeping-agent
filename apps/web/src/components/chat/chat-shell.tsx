@@ -8,6 +8,7 @@ import {
 } from '@bookeeping-agent/ui/components/card';
 import { Textarea } from '@bookeeping-agent/ui/components/textarea';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import DOMPurify from 'dompurify';
 import {
 	BotIcon,
 	PaperclipIcon,
@@ -66,8 +67,8 @@ function AssistantMarkdown({ html }: { html: string }) {
 	return (
 		<div
 			className="assistant-markdown"
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: The server renders Markdown with Sätteri and sanitizes it before it reaches React.
-			dangerouslySetInnerHTML={{ __html: html }}
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: html is sanitized with DOMPurify at this sink (defense-in-depth; the server also sanitizes with sanitize-html).
+			dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
 		/>
 	);
 }
