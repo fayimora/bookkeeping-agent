@@ -7,7 +7,8 @@ import {
 	CardTitle,
 } from '@bookeeping-agent/ui/components/card';
 import { Textarea } from '@bookeeping-agent/ui/components/textarea';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { type UIMessage, useFlueAgent } from '@flue/react';
+import { useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import {
 	BotIcon,
@@ -16,76 +17,111 @@ import {
 	UserIcon,
 	XIcon,
 } from 'lucide-react';
-import { type FormEvent, useRef, useState } from 'react';
+import { marked } from 'marked';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
+import { authClient } from '../../lib/auth-client';
 import {
 	isSupportedImageType,
 	maxAttachments,
 	maxImageBytes,
 	supportedImageTypes,
 } from '../../lib/chat-attachments';
-import { sendChatMessage } from '../../server/chat';
 
+const AGENT_NAME = 'bookkeeper';
 const receiptOnlyMessage = 'Please log the expense from the attached receipt.';
 
-interface ChatImageInput {
+interface SelectedReceiptAttachment {
 	data: string;
-	mimeType: string;
-	type: 'image';
-}
-
-interface SelectedReceiptAttachment extends ChatImageInput {
 	id: string;
+	mimeType: string;
 	name: string;
 }
 
-interface ChatMessage {
-	attachmentNames?: string[];
-	content: string;
-	html?: string;
-	id: string;
-	role: 'assistant' | 'user';
+function renderMarkdownToSafeHtml(markdown: string) {
+	const html = marked.parse(markdown, { async: false }) as string;
+	return DOMPurify.sanitize(html);
 }
 
-function createMessage(
-	role: ChatMessage['role'],
-	content: string,
-	attachmentNames?: string[],
-	html?: string
-): ChatMessage {
-	return {
-		attachmentNames,
-		id: crypto.randomUUID(),
-		role,
-		content,
-		html,
-	};
-}
-
-function AssistantMarkdown({ html }: { html: string }) {
+function AssistantMarkdown({ markdown }: { markdown: string }) {
 	return (
 		<div
 			className="assistant-markdown"
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: html is sanitized with DOMPurify at this sink (defense-in-depth; the server also sanitizes with sanitize-html).
-			dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: markdown is rendered then sanitized with DOMPurify at this sink.
+			dangerouslySetInnerHTML={{ __html: renderMarkdownToSafeHtml(markdown) }}
 		/>
 	);
 }
 
-function ChatMessageContent({ chatMessage }: { chatMessage: ChatMessage }) {
-	if (chatMessage.html) {
-		return <AssistantMarkdown html={chatMessage.html} />;
-	}
-
-	if (!chatMessage.content) {
+function MessageText({
+	isAssistant,
+	state,
+	text,
+}: {
+	isAssistant: boolean;
+	state?: 'done' | 'streaming';
+	text: string;
+}) {
+	if (!text) {
 		return null;
 	}
 
+	// Render rich markdown for completed assistant turns; show plain text while
+	// streaming (and always for the user's own messages).
+	if (isAssistant && state !== 'streaming') {
+		return <AssistantMarkdown markdown={text} />;
+	}
+
+	return <p className="whitespace-pre-wrap text-sm leading-relaxed">{text}</p>;
+}
+
+function MessageBubble({ message }: { message: UIMessage }) {
+	const isUser = message.role === 'user';
+	const textParts = message.parts.filter((part) => part.type === 'text');
+	const fileParts = message.parts.filter((part) => part.type === 'file');
+
 	return (
-		<p className="whitespace-pre-wrap text-sm leading-relaxed">
-			{chatMessage.content}
-		</p>
+		<div className={isUser ? 'flex justify-end' : 'flex justify-start'}>
+			<div
+				className={
+					isUser
+						? 'flex max-w-[80%] gap-3 border bg-primary px-4 py-3 text-primary-foreground'
+						: 'flex max-w-[80%] gap-3 border bg-muted px-4 py-3 text-foreground'
+				}
+			>
+				{isUser ? (
+					<UserIcon className="mt-0.5 size-4 shrink-0" />
+				) : (
+					<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+				)}
+				<div className="flex flex-col gap-2">
+					{textParts.map((part, index) => (
+						<MessageText
+							isAssistant={!isUser}
+							// biome-ignore lint/suspicious/noArrayIndexKey: parts are positionally stable within a message.
+							key={index}
+							state={part.state}
+							text={part.text}
+						/>
+					))}
+					{fileParts.length > 0 ? (
+						<ul className="flex flex-wrap gap-1.5">
+							{fileParts.map((part, index) => (
+								<li
+									className="flex items-center gap-1 border border-primary-foreground/20 px-2 py-1 text-primary-foreground/80 text-xs"
+									// biome-ignore lint/suspicious/noArrayIndexKey: parts are positionally stable within a message.
+									key={index}
+								>
+									<PaperclipIcon className="size-3" />
+									<span>{part.mediaType}</span>
+								</li>
+							))}
+						</ul>
+					) : null}
+				</div>
+			</div>
+		</div>
 	);
 }
 
@@ -120,7 +156,6 @@ async function fileToReceiptAttachment(
 	return {
 		id: crypto.randomUUID(),
 		name: file.name,
-		type: 'image',
 		data: base64Data,
 		mimeType: file.type,
 	};
@@ -130,67 +165,80 @@ export function ChatShell() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const formRef = useRef<HTMLFormElement>(null);
 	const queryClient = useQueryClient();
+	const { data: session } = authClient.useSession();
+	const userId = session?.user.id;
+
+	const agent = useFlueAgent({ name: AGENT_NAME, id: userId });
+	const { messages, status, sendMessage } = agent;
+
 	const [attachments, setAttachments] = useState<SelectedReceiptAttachment[]>(
 		[]
 	);
 	const [message, setMessage] = useState('');
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-	const chatMutation = useMutation({
-		mutationFn: async (input: { content: string; images: ChatImageInput[] }) =>
-			await sendChatMessage({
-				data: { message: input.content, images: input.images },
-			}),
-		onError: () => {
+	const isBusy = status === 'submitted' || status === 'streaming';
+
+	// Refresh the expenses table whenever a turn finishes (the agent may have
+	// created, updated, or deleted expenses while replying).
+	const previousStatus = useRef(status);
+	useEffect(() => {
+		if (
+			(previousStatus.current === 'submitted' ||
+				previousStatus.current === 'streaming') &&
+			status === 'idle'
+		) {
+			queryClient.invalidateQueries({ queryKey: ['expenses'] });
+		}
+
+		previousStatus.current = status;
+	}, [status, queryClient]);
+
+	useEffect(() => {
+		if (status === 'error') {
 			toast.error('Could not reach the bookkeeper agent');
-		},
-		onSuccess: async (response) => {
-			setMessages((currentMessages) => [
-				...currentMessages,
-				createMessage(
-					'assistant',
-					response.message,
-					undefined,
-					response.messageHtml
-				),
-			]);
-			await queryClient.invalidateQueries({ queryKey: ['expenses'] });
-		},
-	});
+		}
+	}, [status]);
 
-	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+	const lastMessage = messages.at(-1);
+	const assistantIsStreaming =
+		lastMessage?.role === 'assistant' &&
+		lastMessage.parts.some(
+			(part) => part.type === 'text' && part.text.length > 0
+		);
+	const showThinking = isBusy && !assistantIsStreaming;
+
+	const canSend =
+		(message.trim().length > 0 || attachments.length > 0) &&
+		!isBusy &&
+		Boolean(userId);
+
+	const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 
 		const trimmedMessage = message.trim();
 		const selectedAttachments = attachments;
 
-		if (!trimmedMessage && selectedAttachments.length === 0) {
+		if ((!trimmedMessage && selectedAttachments.length === 0) || isBusy) {
 			return;
 		}
 
-		setMessages((currentMessages) => [
-			...currentMessages,
-			createMessage(
-				'user',
-				trimmedMessage,
-				selectedAttachments.map((attachment) => attachment.name)
-			),
-		]);
 		setMessage('');
 		setAttachments([]);
-		chatMutation.mutate({
-			content: trimmedMessage || receiptOnlyMessage,
-			images: selectedAttachments.map(({ data, mimeType, type }) => ({
-				data,
-				mimeType,
-				type,
-			})),
-		});
-	};
 
-	const canSend =
-		(message.trim().length > 0 || attachments.length > 0) &&
-		!chatMutation.isPending;
+		try {
+			await sendMessage(trimmedMessage || receiptOnlyMessage, {
+				images: selectedAttachments.length
+					? selectedAttachments.map(({ data, mimeType }) => ({
+							type: 'image' as const,
+							data,
+							mimeType,
+						}))
+					: undefined,
+			});
+		} catch {
+			toast.error('Could not reach the bookkeeper agent');
+		}
+	};
 
 	const handleFileChange = async (filesToAttach: FileList | null) => {
 		const selectedFiles = Array.from(filesToAttach ?? []);
@@ -270,50 +318,9 @@ export function ChatShell() {
 							) : (
 								<div className="flex flex-col gap-4">
 									{messages.map((chatMessage) => (
-										<div
-											className={
-												chatMessage.role === 'user'
-													? 'flex justify-end'
-													: 'flex justify-start'
-											}
-											key={chatMessage.id}
-										>
-											<div
-												className={
-													chatMessage.role === 'user'
-														? 'flex max-w-[80%] gap-3 border bg-primary px-4 py-3 text-primary-foreground'
-														: 'flex max-w-[80%] gap-3 border bg-muted px-4 py-3 text-foreground'
-												}
-											>
-												{chatMessage.role === 'user' ? (
-													<UserIcon className="mt-0.5 size-4 shrink-0" />
-												) : (
-													<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-												)}
-												<div className="flex flex-col gap-2">
-													<ChatMessageContent chatMessage={chatMessage} />
-													{chatMessage.attachmentNames?.length ? (
-														<ul className="flex flex-wrap gap-1.5">
-															{chatMessage.attachmentNames.map(
-																(attachmentName) => (
-																	<li
-																		className="flex items-center gap-1 border border-primary-foreground/20 px-2 py-1 text-primary-foreground/80 text-xs"
-																		key={attachmentName}
-																	>
-																		<PaperclipIcon className="size-3" />
-																		<span className="max-w-40 truncate">
-																			{attachmentName}
-																		</span>
-																	</li>
-																)
-															)}
-														</ul>
-													) : null}
-												</div>
-											</div>
-										</div>
+										<MessageBubble key={chatMessage.id} message={chatMessage} />
 									))}
-									{chatMutation.isPending ? (
+									{showThinking ? (
 										<div className="flex justify-start">
 											<div className="flex max-w-[80%] items-center gap-3 border bg-muted px-4 py-3 text-muted-foreground text-sm">
 												<BotIcon className="size-4" />
@@ -364,7 +371,7 @@ export function ChatShell() {
 								Message
 							</label>
 							<Textarea
-								disabled={chatMutation.isPending}
+								disabled={isBusy}
 								id="chat-message"
 								onChange={(event) => setMessage(event.target.value)}
 								onKeyDown={(event) => {
@@ -398,7 +405,7 @@ export function ChatShell() {
 							/>
 							<div className="flex items-center justify-between gap-3">
 								<Button
-									disabled={chatMutation.isPending}
+									disabled={isBusy}
 									onClick={() => fileInputRef.current?.click()}
 									type="button"
 									variant="outline"
@@ -407,7 +414,7 @@ export function ChatShell() {
 									Attach receipt
 								</Button>
 								<Button disabled={!canSend} type="submit">
-									{chatMutation.isPending ? 'Sending…' : 'Send message'}
+									{isBusy ? 'Sending…' : 'Send message'}
 									<SendIcon data-icon="inline-end" />
 								</Button>
 							</div>

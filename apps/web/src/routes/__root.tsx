@@ -11,6 +11,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 import Header from '../components/header';
 import appCss from '../index.css?url';
+import { FlueClientProvider } from '../providers/flue-provider';
 import { QueryProvider } from '../providers/query-provider';
 
 export const Route = createRootRoute({
@@ -46,25 +47,27 @@ function RootDocument() {
 			</head>
 			<body>
 				<QueryProvider>
-					<div className="grid h-svh grid-rows-[auto_1fr]">
-						<Header />
-						<Outlet />
-					</div>
-					<Toaster richColors />
-					<TanStackDevtools
-						plugins={[
-							{
-								id: 'tanstack-query',
-								name: 'TanStack Query',
-								render: <ReactQueryDevtoolsPanel />,
-							},
-							{
-								id: 'tanstack-router',
-								name: 'TanStack Router',
-								render: <TanStackRouterDevtoolsPanel />,
-							},
-						]}
-					/>
+					<FlueClientProvider>
+						<div className="grid h-svh grid-rows-[auto_1fr]">
+							<Header />
+							<Outlet />
+						</div>
+						<Toaster richColors />
+						<TanStackDevtools
+							plugins={[
+								{
+									id: 'tanstack-query',
+									name: 'TanStack Query',
+									render: <ReactQueryDevtoolsPanel />,
+								},
+								{
+									id: 'tanstack-router',
+									name: 'TanStack Router',
+									render: <TanStackRouterDevtoolsPanel />,
+								},
+							]}
+						/>
+					</FlueClientProvider>
 				</QueryProvider>
 				<Scripts />
 			</body>

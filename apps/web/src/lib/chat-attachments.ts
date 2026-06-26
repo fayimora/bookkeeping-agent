@@ -6,7 +6,6 @@ export const supportedImageTypes = [
 ] as const;
 
 export const maxImageBytes = 5 * 1024 * 1024;
-export const maxImageDataLength = Math.ceil(maxImageBytes / 3) * 4;
 export const maxAttachments = 3;
 
 export type SupportedImageType = (typeof supportedImageTypes)[number];
