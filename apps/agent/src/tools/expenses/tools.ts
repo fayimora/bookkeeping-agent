@@ -8,11 +8,8 @@ import {
 import { defineTool, type ToolDefinition } from '@flue/runtime';
 
 import {
-	type CreateExpenseToolInput,
 	createExpenseParameters,
-	type DeleteExpenseToolInput,
 	deleteExpenseParameters,
-	type GetExpenseToolInput,
 	getExpenseParameters,
 	listExpensesParameters,
 	type UpdateExpenseToolInput,
@@ -121,8 +118,8 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		name: 'list_expenses',
 		description:
 			'List saved expenses, optionally filtered by date range, category, or text search.',
-		parameters: listExpensesParameters,
-		execute: async (input) => {
+		input: listExpensesParameters,
+		run: async ({ input }) => {
 			const filters = await resolveExpenseFilters(userId, input);
 			const expenses = await listExpenses(userId, filters);
 
@@ -133,8 +130,8 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	const getExpenseTool = defineTool({
 		name: 'get_expense',
 		description: 'Get one saved expense by id.',
-		parameters: getExpenseParameters,
-		execute: async (input: GetExpenseToolInput) => {
+		input: getExpenseParameters,
+		run: async ({ input }) => {
 			const expense = await getExpenseById(userId, input.id);
 
 			if (!expense) {
@@ -149,8 +146,8 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		name: 'get_spending_total',
 		description:
 			'Calculate spending totals from saved expenses, optionally filtered by date range, category, or text search.',
-		parameters: listExpensesParameters,
-		execute: async (input) => {
+		input: listExpensesParameters,
+		run: async ({ input }) => {
 			const filters = await resolveExpenseFilters(userId, input);
 			const expenses = await listExpenses(userId, filters);
 			const totalsByCurrency = expenses.reduce<Record<string, number>>(
@@ -178,8 +175,8 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		name: 'create_expense',
 		description:
 			'Create a saved expense after the vendor, date, amount, currency, and category are clear. Amount must be in minor units, such as pence or cents.',
-		parameters: createExpenseParameters,
-		execute: async (input: CreateExpenseToolInput) => {
+		input: createExpenseParameters,
+		run: async ({ input }) => {
 			const categoryId = await resolveExpenseCategoryId(userId, input);
 
 			const expense = await createExpense(userId, {
@@ -199,8 +196,8 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		name: 'update_expense',
 		description:
 			'Update a saved expense by id after the requested field changes are clear. Amount must be in minor units, such as pence or cents.',
-		parameters: updateExpenseParameters,
-		execute: async (input: UpdateExpenseToolInput) => {
+		input: updateExpenseParameters,
+		run: async ({ input }) => {
 			const values = await buildUpdateExpenseValues(userId, input);
 			const expense = await updateExpense(userId, input.id, values);
 
@@ -215,8 +212,8 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	const deleteExpenseTool = defineTool({
 		name: 'delete_expense',
 		description: 'Delete a saved expense by id only after user confirmation.',
-		parameters: deleteExpenseParameters,
-		execute: async (input: DeleteExpenseToolInput) => {
+		input: deleteExpenseParameters,
+		run: async ({ input }) => {
 			const expense = await deleteExpense(userId, input.id);
 
 			if (!expense) {

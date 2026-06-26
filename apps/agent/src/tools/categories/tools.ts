@@ -9,14 +9,11 @@ import {
 import { defineTool, type ToolDefinition } from '@flue/runtime';
 
 import {
-	type CreateCategoryToolInput,
 	createCategoryParameters,
-	type DeleteCategoryToolInput,
 	deleteCategoryParameters,
 	type GetCategoryToolInput,
 	getCategoryParameters,
 	listCategoriesParameters,
-	type UpdateCategoryToolInput,
 	updateCategoryParameters,
 } from './schemas.ts';
 
@@ -58,8 +55,8 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		name: 'list_categories',
 		description:
 			'List the available expense categories. Use this before creating or updating an expense when you need a valid category.',
-		parameters: listCategoriesParameters,
-		execute: async () => {
+		input: listCategoriesParameters,
+		run: async () => {
 			const categories = await listCategories(userId);
 			return JSON.stringify({ categories });
 		},
@@ -68,8 +65,8 @@ export function categoryTools(userId: string): ToolDefinition[] {
 	const getCategoryTool = defineTool({
 		name: 'get_category',
 		description: 'Get one expense category by id or slug.',
-		parameters: getCategoryParameters,
-		execute: async (input: GetCategoryToolInput) => {
+		input: getCategoryParameters,
+		run: async ({ input }) => {
 			const category = await resolveCategoryOrThrow(userId, input);
 			return JSON.stringify({ category });
 		},
@@ -79,8 +76,8 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		name: 'create_category',
 		description:
 			'Create a new expense category after the category name is clear. If slug is omitted, it is generated from the name.',
-		parameters: createCategoryParameters,
-		execute: async (input: CreateCategoryToolInput) => {
+		input: createCategoryParameters,
+		run: async ({ input }) => {
 			const name = input.name.trim();
 			const slug = input.slug?.trim() || slugifyCategoryName(name);
 
@@ -99,8 +96,8 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		name: 'update_category',
 		description:
 			'Update an expense category by id or slug after the requested name or slug change is clear.',
-		parameters: updateCategoryParameters,
-		execute: async (input: UpdateCategoryToolInput) => {
+		input: updateCategoryParameters,
+		run: async ({ input }) => {
 			const existingCategory = await resolveCategoryOrThrow(userId, input);
 			const values: { name?: string; slug?: string } = {};
 
@@ -134,8 +131,8 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		name: 'delete_category',
 		description:
 			'Delete an expense category by id or slug only after user confirmation. Existing expenses in this category become uncategorized.',
-		parameters: deleteCategoryParameters,
-		execute: async (input: DeleteCategoryToolInput) => {
+		input: deleteCategoryParameters,
+		run: async ({ input }) => {
 			const existingCategory = await resolveCategoryOrThrow(userId, input);
 			const category = await deleteCategory(userId, existingCategory.id);
 

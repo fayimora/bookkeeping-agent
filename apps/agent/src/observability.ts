@@ -100,8 +100,8 @@ function addSummaryContext(record: Record<string, unknown>, event: FlueEvent) {
 			record.messageCount = event.messages.length;
 			break;
 		case 'turn_request':
-			record.messageCount = event.input.messages.length;
-			record.toolNames = event.input.tools?.map((tool) => tool.name);
+			record.messageCount = event.request.input.messages.length;
+			record.toolNames = event.request.input.tools?.map((tool) => tool.name);
 			break;
 		case 'log':
 			record.message = event.message;
