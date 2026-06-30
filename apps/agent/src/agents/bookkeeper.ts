@@ -1,5 +1,5 @@
 import { env } from '@bookeeping-agent/env/server';
-import { type AgentRouteHandler, createAgent } from '@flue/runtime';
+import { type AgentRouteHandler, defineAgent } from '@flue/runtime';
 import { bookkeeperInstructions } from '../instructions/bookkeeper.ts';
 import { registerAgentObservability } from '../observability.ts';
 import receiptEntry from '../skills/receipt-entry/SKILL.md' with {
@@ -19,7 +19,7 @@ export const route: AgentRouteHandler = async (_context, next) => {
 	await next();
 };
 
-export default createAgent(({ id: userId }) => ({
+export default defineAgent(({ id: userId }) => ({
 	model: env.AGENT_MODEL,
 	instructions: bookkeeperInstructions,
 	skills: [spendAnalysis, receiptEntry],
