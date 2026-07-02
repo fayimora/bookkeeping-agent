@@ -19,9 +19,17 @@ export const route: AgentRouteHandler = async (_context, next) => {
 	await next();
 };
 
-export default defineAgent(({ id: userId }) => ({
-	model: env.AGENT_MODEL,
-	instructions: bookkeeperInstructions,
-	skills: [spendAnalysis, receiptEntry],
-	tools: bookkeeperTools(userId),
-}));
+// The Flue agent instance id is a composite `${userId}::${conversationId}` so
+// each chat thread gets its own isolated session/memory. Parse the userId back
+// out to keep expense/category tools scoped to the user. A plain id (no `::`)
+// falls back to the whole string for backwards compatibility.
+export default defineAgent(({ id: instanceId }) => {
+	const userId = instanceId.split('::')[0] ?? instanceId;
+
+	return {
+		model: env.AGENT_MODEL,
+		instructions: bookkeeperInstructions,
+		skills: [spendAnalysis, receiptEntry],
+		tools: bookkeeperTools(userId),
+	};
+});
