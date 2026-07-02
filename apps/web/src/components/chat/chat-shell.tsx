@@ -7,7 +7,7 @@ import {
 	CardTitle,
 } from '@bookeeping-agent/ui/components/card';
 import { Textarea } from '@bookeeping-agent/ui/components/textarea';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import {
 	BotIcon,
@@ -16,7 +16,7 @@ import {
 	UserIcon,
 	XIcon,
 } from 'lucide-react';
-import { type FormEvent, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -26,12 +26,16 @@ import {
 	supportedImageTypes,
 } from '../../lib/chat-attachments';
 import { sendChatMessage } from '../../server/chat';
+import { listMessages } from '../../server/conversations';
+
+type ServerMessage = Awaited<ReturnType<typeof listMessages>>[number];
 
 const receiptOnlyMessage = 'Please log the expense from the attached receipt.';
 
 interface ChatImageInput {
 	data: string;
 	mimeType: string;
+	name?: string;
 	type: 'image';
 }
 
@@ -89,6 +93,107 @@ function ChatMessageContent({ chatMessage }: { chatMessage: ChatMessage }) {
 	);
 }
 
+function mapServerMessage(row: ServerMessage): ChatMessage {
+	return {
+		attachmentNames: row.attachmentNames ?? undefined,
+		content: row.content,
+		html: row.role === 'assistant' ? (row.contentHtml ?? undefined) : undefined,
+		id: row.id,
+		role: row.role === 'assistant' ? 'assistant' : 'user',
+	};
+}
+
+function ChatTranscript({
+	isLoading,
+	isThinking,
+	messages,
+}: {
+	isLoading: boolean;
+	isThinking: boolean;
+	messages: ChatMessage[];
+}) {
+	if (isLoading) {
+		return (
+			<div className="grid min-h-60 place-items-center text-center text-muted-foreground text-sm">
+				Loading messages…
+			</div>
+		);
+	}
+
+	if (messages.length === 0) {
+		return (
+			<div className="grid min-h-60 place-items-center text-center">
+				<div className="flex max-w-sm flex-col items-center gap-3">
+					<div className="flex size-10 items-center justify-center border bg-muted text-muted-foreground">
+						<BotIcon className="size-5" />
+					</div>
+					<div>
+						<p className="font-medium text-sm">No messages yet</p>
+						<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
+							Ask about expenses or add one in plain English.
+						</p>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex flex-col gap-4">
+			{messages.map((chatMessage) => (
+				<div
+					className={
+						chatMessage.role === 'user'
+							? 'flex justify-end'
+							: 'flex justify-start'
+					}
+					key={chatMessage.id}
+				>
+					<div
+						className={
+							chatMessage.role === 'user'
+								? 'flex max-w-[80%] gap-3 border bg-primary px-4 py-3 text-primary-foreground'
+								: 'flex max-w-[80%] gap-3 border bg-muted px-4 py-3 text-foreground'
+						}
+					>
+						{chatMessage.role === 'user' ? (
+							<UserIcon className="mt-0.5 size-4 shrink-0" />
+						) : (
+							<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+						)}
+						<div className="flex flex-col gap-2">
+							<ChatMessageContent chatMessage={chatMessage} />
+							{chatMessage.attachmentNames?.length ? (
+								<ul className="flex flex-wrap gap-1.5">
+									{chatMessage.attachmentNames.map((attachmentName) => (
+										<li
+											className="flex items-center gap-1 border border-primary-foreground/20 px-2 py-1 text-primary-foreground/80 text-xs"
+											key={attachmentName}
+										>
+											<PaperclipIcon className="size-3" />
+											<span className="max-w-40 truncate">
+												{attachmentName}
+											</span>
+										</li>
+									))}
+								</ul>
+							) : null}
+						</div>
+					</div>
+				</div>
+			))}
+			{isThinking ? (
+				<div className="flex justify-start">
+					<div className="flex max-w-[80%] items-center gap-3 border bg-muted px-4 py-3 text-muted-foreground text-sm">
+						<BotIcon className="size-4" />
+						Thinking…
+					</div>
+				</div>
+			) : null}
+		</div>
+	);
+}
+
 function readFileAsDataUrl(file: File) {
 	return new Promise<string>((resolve, reject) => {
 		const reader = new FileReader();
@@ -126,7 +231,7 @@ async function fileToReceiptAttachment(
 	};
 }
 
-export function ChatShell() {
+export function ChatShell({ conversationId }: { conversationId: string }) {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const formRef = useRef<HTMLFormElement>(null);
 	const queryClient = useQueryClient();
@@ -136,10 +241,29 @@ export function ChatShell() {
 	const [message, setMessage] = useState('');
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 
+	const messagesQuery = useQuery({
+		queryKey: ['messages', conversationId],
+		queryFn: async () => await listMessages({ data: { conversationId } }),
+	});
+
+	const serverMessages = messagesQuery.data;
+
+	// Seed and reset the transcript from the authoritative server history.
+	// Because the query key includes conversationId, switching threads swaps
+	// the data and this effect reloads the correct transcript (no cross-thread
+	// bleed). Optimistic appends live in this same array until the next refetch.
+	useEffect(() => {
+		if (serverMessages) {
+			setMessages(serverMessages.map(mapServerMessage));
+		} else {
+			setMessages([]);
+		}
+	}, [serverMessages]);
+
 	const chatMutation = useMutation({
 		mutationFn: async (input: { content: string; images: ChatImageInput[] }) =>
 			await sendChatMessage({
-				data: { message: input.content, images: input.images },
+				data: { conversationId, message: input.content, images: input.images },
 			}),
 		onError: () => {
 			toast.error('Could not reach the bookkeeper agent');
@@ -154,7 +278,13 @@ export function ChatShell() {
 					response.messageHtml
 				),
 			]);
-			await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: ['messages', conversationId],
+				}),
+				queryClient.invalidateQueries({ queryKey: ['conversations'] }),
+				queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+			]);
 		},
 	});
 
@@ -180,9 +310,10 @@ export function ChatShell() {
 		setAttachments([]);
 		chatMutation.mutate({
 			content: trimmedMessage || receiptOnlyMessage,
-			images: selectedAttachments.map(({ data, mimeType, type }) => ({
+			images: selectedAttachments.map(({ data, mimeType, name, type }) => ({
 				data,
 				mimeType,
+				name,
 				type,
 			})),
 		});
@@ -253,76 +384,11 @@ export function ChatShell() {
 							aria-live="polite"
 							className="min-h-72 flex-1 space-y-4 overflow-auto border bg-background/40 p-4"
 						>
-							{messages.length === 0 ? (
-								<div className="grid min-h-60 place-items-center text-center">
-									<div className="flex max-w-sm flex-col items-center gap-3">
-										<div className="flex size-10 items-center justify-center border bg-muted text-muted-foreground">
-											<BotIcon className="size-5" />
-										</div>
-										<div>
-											<p className="font-medium text-sm">No messages yet</p>
-											<p className="mt-1 text-muted-foreground text-sm leading-relaxed">
-												Ask about expenses or add one in plain English.
-											</p>
-										</div>
-									</div>
-								</div>
-							) : (
-								<div className="flex flex-col gap-4">
-									{messages.map((chatMessage) => (
-										<div
-											className={
-												chatMessage.role === 'user'
-													? 'flex justify-end'
-													: 'flex justify-start'
-											}
-											key={chatMessage.id}
-										>
-											<div
-												className={
-													chatMessage.role === 'user'
-														? 'flex max-w-[80%] gap-3 border bg-primary px-4 py-3 text-primary-foreground'
-														: 'flex max-w-[80%] gap-3 border bg-muted px-4 py-3 text-foreground'
-												}
-											>
-												{chatMessage.role === 'user' ? (
-													<UserIcon className="mt-0.5 size-4 shrink-0" />
-												) : (
-													<BotIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-												)}
-												<div className="flex flex-col gap-2">
-													<ChatMessageContent chatMessage={chatMessage} />
-													{chatMessage.attachmentNames?.length ? (
-														<ul className="flex flex-wrap gap-1.5">
-															{chatMessage.attachmentNames.map(
-																(attachmentName) => (
-																	<li
-																		className="flex items-center gap-1 border border-primary-foreground/20 px-2 py-1 text-primary-foreground/80 text-xs"
-																		key={attachmentName}
-																	>
-																		<PaperclipIcon className="size-3" />
-																		<span className="max-w-40 truncate">
-																			{attachmentName}
-																		</span>
-																	</li>
-																)
-															)}
-														</ul>
-													) : null}
-												</div>
-											</div>
-										</div>
-									))}
-									{chatMutation.isPending ? (
-										<div className="flex justify-start">
-											<div className="flex max-w-[80%] items-center gap-3 border bg-muted px-4 py-3 text-muted-foreground text-sm">
-												<BotIcon className="size-4" />
-												Thinking…
-											</div>
-										</div>
-									) : null}
-								</div>
-							)}
+							<ChatTranscript
+								isLoading={messagesQuery.isPending}
+								isThinking={chatMutation.isPending}
+								messages={messages}
+							/>
 						</div>
 
 						<form
