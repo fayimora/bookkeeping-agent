@@ -62,24 +62,20 @@ function usageSummary(usage?: PromptUsage) {
 	};
 }
 
+function serializeError(error: Error) {
+	return { name: error.name, message: error.message, stack: error.stack };
+}
+
 function errorSummary(error: unknown) {
 	if (!error) {
 		return;
 	}
 
 	if (error instanceof Error) {
-		return {
-			name: error.name,
-			message: error.message,
-			stack: error.stack,
-		};
+		return serializeError(error);
 	}
 
-	if (typeof error === 'string') {
-		return error;
-	}
-
-	return String(error);
+	return typeof error === 'string' ? error : String(error);
 }
 
 function logLevelForEvent(event: FlueEvent) {
@@ -149,11 +145,7 @@ function shouldLog(event: FlueEvent, mode: ObservabilityMode) {
 
 function toJsonValue(_key: string, value: unknown) {
 	if (value instanceof Error) {
-		return {
-			name: value.name,
-			message: value.message,
-			stack: value.stack,
-		};
+		return serializeError(value);
 	}
 
 	if (typeof value === 'bigint') {
@@ -169,15 +161,11 @@ function writeLog(event: FlueEvent, mode: ObservabilityMode) {
 
 	if (level === 'error') {
 		console.error(line);
-		return;
-	}
-
-	if (level === 'warn') {
+	} else if (level === 'warn') {
 		console.warn(line);
-		return;
+	} else {
+		console.info(line);
 	}
-
-	console.info(line);
 }
 
 export function registerAgentObservability() {
