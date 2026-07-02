@@ -1,3 +1,8 @@
+import {
+	addMessage,
+	getConversationById,
+	renameConversation,
+} from '@bookeeping-agent/db/queries/conversations';
 import { env } from '@bookeeping-agent/env/server';
 import { type AgentPromptImage, createFlueClient } from '@flue/sdk';
 import { createServerFn } from '@tanstack/react-start';
@@ -16,12 +21,27 @@ const chatImageSchema = z.object({
 	type: z.literal('image'),
 	data: z.string().min(1).max(maxImageDataLength),
 	mimeType: z.enum(supportedImageTypes),
+	name: z.string().trim().min(1).max(255).optional(),
 });
 
 const sendChatMessageInputSchema = z.object({
+	conversationId: z.uuid(),
 	message: z.string().trim().min(1).max(4000),
 	images: z.array(chatImageSchema).max(maxAttachments).optional(),
 });
+
+const defaultConversationTitle = 'New chat';
+const maxDerivedTitleLength = 48;
+
+function deriveConversationTitle(message: string) {
+	const normalized = message.replace(/\s+/g, ' ').trim();
+
+	if (normalized.length <= maxDerivedTitleLength) {
+		return normalized;
+	}
+
+	return `${normalized.slice(0, maxDerivedTitleLength).trimEnd()}…`;
+}
 
 const codeLanguageClassPattern = /^language-[\w-]+$/;
 const centerAlignPattern = /^center$/;
@@ -114,20 +134,58 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
 	.validator((data: unknown) => sendChatMessageInputSchema.parse(data))
 	.handler(async ({ data }) => {
 		const session = await ensureSession();
+		const userId = session.user.id;
+
+		const conversation = await getConversationById(userId, data.conversationId);
+
+		if (!conversation) {
+			throw new Error('Conversation not found.');
+		}
+
+		const attachmentNames = data.images
+			?.map((image) => image.name)
+			.filter((name): name is string => Boolean(name));
+
+		await addMessage(userId, conversation.id, {
+			role: 'user',
+			content: data.message,
+			attachmentNames: attachmentNames?.length ? attachmentNames : null,
+		});
+
+		if (conversation.title === defaultConversationTitle) {
+			await renameConversation(userId, conversation.id, {
+				title: deriveConversationTitle(data.message),
+			});
+		}
 
 		const client = createBookkeeperClient();
 		const images: AgentPromptImage[] | undefined = data.images?.length
-			? data.images
+			? data.images.map(({ data: imageData, mimeType, type }) => ({
+					data: imageData,
+					mimeType,
+					type,
+				}))
 			: undefined;
-		const response = await client.agents.prompt('bookkeeper', session.user.id, {
-			message: data.message,
-			images,
-		});
+		const response = await client.agents.prompt(
+			'bookkeeper',
+			`${userId}::${conversation.id}`,
+			{
+				message: data.message,
+				images,
+			}
+		);
 
 		const message = getAgentText(response.result);
+		const messageHtml = renderMarkdownToSafeHtml(message);
+
+		await addMessage(userId, conversation.id, {
+			role: 'assistant',
+			content: message,
+			contentHtml: messageHtml,
+		});
 
 		return {
 			message,
-			messageHtml: renderMarkdownToSafeHtml(message),
+			messageHtml,
 		};
 	});
