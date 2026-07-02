@@ -4,6 +4,7 @@ import {
 	date,
 	index,
 	integer,
+	jsonb,
 	pgTable,
 	text,
 	timestamp,
@@ -144,10 +145,66 @@ export const expenses = pgTable(
 	]
 );
 
+export const conversations = pgTable(
+	'conversations',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		title: varchar('title', { length: 200 }).notNull().default('New chat'),
+		lastMessageAt: timestamp('last_message_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index('conversations_user_id_idx').on(table.userId),
+		index('conversations_user_id_last_message_idx').on(
+			table.userId,
+			table.lastMessageAt
+		),
+	]
+);
+
+export const messages = pgTable(
+	'messages',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		conversationId: uuid('conversation_id')
+			.notNull()
+			.references(() => conversations.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		role: varchar('role', { length: 16 }).notNull(),
+		content: text('content').notNull(),
+		contentHtml: text('content_html'),
+		attachmentNames: jsonb('attachment_names').$type<string[]>(),
+		createdAt: timestamp('created_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+	},
+	(table) => [
+		index('messages_conversation_id_idx').on(table.conversationId),
+		index('messages_conversation_created_idx').on(
+			table.conversationId,
+			table.createdAt
+		),
+	]
+);
+
 export const usersRelations = relations(users, ({ many }) => ({
 	accounts: many(accounts),
 	categories: many(categories),
+	conversations: many(conversations),
 	expenses: many(expenses),
+	messages: many(messages),
 	sessions: many(sessions),
 }));
 
@@ -184,13 +241,39 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
 	}),
 }));
 
+export const conversationsRelations = relations(
+	conversations,
+	({ many, one }) => ({
+		messages: many(messages),
+		user: one(users, {
+			fields: [conversations.userId],
+			references: [users.id],
+		}),
+	})
+);
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+	conversation: one(conversations, {
+		fields: [messages.conversationId],
+		references: [conversations.id],
+	}),
+	user: one(users, {
+		fields: [messages.userId],
+		references: [users.id],
+	}),
+}));
+
 export const schema = {
 	accounts,
 	accountsRelations,
 	categories,
 	categoriesRelations,
+	conversations,
+	conversationsRelations,
 	expenses,
 	expensesRelations,
+	messages,
+	messagesRelations,
 	sessions,
 	sessionsRelations,
 	users,
@@ -204,3 +287,7 @@ export type Category = typeof categories.$inferSelect;
 export type NewCategory = typeof categories.$inferInsert;
 export type Expense = typeof expenses.$inferSelect;
 export type NewExpense = typeof expenses.$inferInsert;
+export type Conversation = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+export type Message = typeof messages.$inferSelect;
+export type NewMessage = typeof messages.$inferInsert;
