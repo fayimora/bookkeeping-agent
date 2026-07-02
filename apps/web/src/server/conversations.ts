@@ -63,6 +63,14 @@ export const deleteConversation = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		const session = await ensureSession();
 
+		// Hard-deletes the conversation + its messages (cascade). The matching
+		// Flue session state (flue_sessions / flue_session_entries /
+		// flue_image_chunks, keyed by `${userId}::${conversationId}`) is
+		// intentionally left orphaned: Flue exposes no HTTP/session-delete API in
+		// this beta and its composite keys are unique and never reused, so orphans
+		// never collide with new threads. Storage cost is mostly orphaned receipt
+		// image chunks.
+		// TODO: reclaim Flue state once the runtime exposes session deletion.
 		return await deleteConversationRecord(session.user.id, data.id);
 	});
 
