@@ -53,17 +53,17 @@ function usageSummary(usage?: PromptUsage) {
 	}
 
 	return {
-		inputTokens: usage.input,
-		outputTokens: usage.output,
 		cacheReadTokens: usage.cacheRead,
 		cacheWriteTokens: usage.cacheWrite,
-		totalTokens: usage.totalTokens,
 		cost: usage.cost.total,
+		inputTokens: usage.input,
+		outputTokens: usage.output,
+		totalTokens: usage.totalTokens,
 	};
 }
 
 function serializeError(error: Error) {
-	return { name: error.name, message: error.message, stack: error.stack };
+	return { message: error.message, name: error.name, stack: error.stack };
 }
 
 function errorSummary(error: unknown) {
@@ -91,26 +91,30 @@ function addSummaryContext(record: Record<string, unknown>, event: FlueEvent) {
 		record.error = errorSummary(event.error);
 	}
 
-	switch (event.type) {
-		case 'agent_end':
-			record.messageCount = event.messages.length;
-			break;
-		case 'turn_request':
-			record.messageCount = event.request.input.messages.length;
-			record.toolNames = event.request.input.tools?.map((tool) => tool.name);
-			break;
-		case 'log':
-			record.message = event.message;
-			break;
-		default:
-			break;
+	const eventType = event.type as string;
+
+	if (eventType === 'agent_end' && 'messages' in event) {
+		record.messageCount = event.messages.length;
+	}
+
+	if (eventType === 'turn_request' && 'request' in event) {
+		const request = event.request as {
+			input?: { messages?: unknown[]; tools?: Array<{ name: string }> };
+		};
+
+		record.messageCount = request.input?.messages?.length;
+		record.toolNames = request.input?.tools?.map((tool) => tool.name);
+	}
+
+	if (eventType === 'log' && 'message' in event) {
+		record.message = event.message;
 	}
 }
 
 function summaryRecordForEvent(event: FlueEvent) {
 	const record: Record<string, unknown> = {
-		service: serviceName,
 		level: logLevelForEvent(event),
+		service: serviceName,
 	};
 
 	for (const [key, value] of Object.entries(event)) {
@@ -129,8 +133,8 @@ function recordForEvent(event: FlueEvent, mode: ObservabilityMode) {
 	}
 
 	return {
-		service: serviceName,
 		level: logLevelForEvent(event),
+		service: serviceName,
 		...event,
 	};
 }

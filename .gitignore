@@ -48,6 +48,10 @@ lerna-debug.log*
 coverage
 .nyc_output
 
+# Local agent artifacts
+.entire
+.pi
+
 # Misc
 *.tgz
 .cache

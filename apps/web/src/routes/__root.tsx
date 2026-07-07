@@ -14,28 +14,27 @@ import appCss from '../index.css?url';
 import { QueryProvider } from '../providers/query-provider';
 
 export const Route = createRootRoute({
+	component: RootDocument,
 	head: () => ({
+		links: [
+			{
+				href: appCss,
+				rel: 'stylesheet',
+			},
+		],
 		meta: [
 			{
 				charSet: 'utf-8',
 			},
 			{
-				name: 'viewport',
 				content: 'width=device-width, initial-scale=1',
+				name: 'viewport',
 			},
 			{
 				title: 'My App',
 			},
 		],
-		links: [
-			{
-				rel: 'stylesheet',
-				href: appCss,
-			},
-		],
 	}),
-
-	component: RootDocument,
 });
 
 function RootDocument() {

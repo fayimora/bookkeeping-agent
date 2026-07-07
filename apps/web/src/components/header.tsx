@@ -7,10 +7,10 @@ export default function Header() {
 	const navigate = useNavigate();
 	const session = authClient.useSession();
 	const links = [
-		{ to: '/', label: 'Home' },
-		{ to: '/expenses', label: 'Expenses' },
-		{ to: '/categories', label: 'Categories' },
-		{ to: '/chat', label: 'Chat' },
+		{ label: 'Home', to: '/' },
+		{ label: 'Expenses', to: '/expenses' },
+		{ label: 'Categories', to: '/categories' },
+		{ label: 'Chat', to: '/chat' },
 	] as const;
 
 	const handleLogout = async () => {

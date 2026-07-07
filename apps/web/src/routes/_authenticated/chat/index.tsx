@@ -16,8 +16,8 @@ export const Route = createFileRoute('/_authenticated/chat/')({
 
 		if (latest) {
 			throw redirect({
-				to: '/chat/$conversationId',
 				params: { conversationId: latest.id },
+				to: '/chat/$conversationId',
 			});
 		}
 	},
@@ -38,8 +38,8 @@ function ChatIndex() {
 
 			await queryClient.invalidateQueries({ queryKey: ['conversations'] });
 			await navigate({
-				to: '/chat/$conversationId',
 				params: { conversationId: conversation.id },
+				to: '/chat/$conversationId',
 			});
 		},
 	});

@@ -14,16 +14,16 @@ import {
 } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull(),
+	createdAt: timestamp('created_at', { withTimezone: true })
+		.$defaultFn(() => new Date())
+		.notNull(),
 	email: text('email').notNull().unique(),
 	emailVerified: boolean('email_verified')
 		.$defaultFn(() => false)
 		.notNull(),
+	id: text('id').primaryKey(),
 	image: text('image'),
-	createdAt: timestamp('created_at', { withTimezone: true })
-		.$defaultFn(() => new Date())
-		.notNull(),
+	name: text('name').notNull(),
 	updatedAt: timestamp('updated_at', { withTimezone: true })
 		.$defaultFn(() => new Date())
 		.notNull(),
@@ -32,16 +32,16 @@ export const users = pgTable('users', {
 export const sessions = pgTable(
 	'sessions',
 	{
-		id: text('id').primaryKey(),
-		expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-		token: text('token').notNull().unique(),
 		createdAt: timestamp('created_at', { withTimezone: true })
 			.$defaultFn(() => new Date())
 			.notNull(),
+		expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+		id: text('id').primaryKey(),
+		ipAddress: text('ip_address'),
+		token: text('token').notNull().unique(),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.$defaultFn(() => new Date())
 			.notNull(),
-		ipAddress: text('ip_address'),
 		userAgent: text('user_agent'),
 		userId: text('user_id')
 			.notNull()
@@ -53,61 +53,61 @@ export const sessions = pgTable(
 export const accounts = pgTable(
 	'accounts',
 	{
-		id: text('id').primaryKey(),
-		accountId: text('account_id').notNull(),
-		providerId: text('provider_id').notNull(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => users.id, { onDelete: 'cascade' }),
 		accessToken: text('access_token'),
-		refreshToken: text('refresh_token'),
-		idToken: text('id_token'),
 		accessTokenExpiresAt: timestamp('access_token_expires_at', {
 			withTimezone: true,
 		}),
+		accountId: text('account_id').notNull(),
+		createdAt: timestamp('created_at', { withTimezone: true })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		id: text('id').primaryKey(),
+		idToken: text('id_token'),
+		password: text('password'),
+		providerId: text('provider_id').notNull(),
+		refreshToken: text('refresh_token'),
 		refreshTokenExpiresAt: timestamp('refresh_token_expires_at', {
 			withTimezone: true,
 		}),
 		scope: text('scope'),
-		password: text('password'),
-		createdAt: timestamp('created_at', { withTimezone: true })
-			.$defaultFn(() => new Date())
-			.notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.$defaultFn(() => new Date())
 			.notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
 	},
 	(table) => [index('accounts_user_id_idx').on(table.userId)]
 );
 
 export const verifications = pgTable('verifications', {
-	id: text('id').primaryKey(),
-	identifier: text('identifier').notNull(),
-	value: text('value').notNull(),
-	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 	createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(
 		() => new Date()
 	),
+	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+	id: text('id').primaryKey(),
+	identifier: text('identifier').notNull(),
 	updatedAt: timestamp('updated_at', { withTimezone: true }).$defaultFn(
 		() => new Date()
 	),
+	value: text('value').notNull(),
 });
 
 export const categories = pgTable(
 	'categories',
 	{
-		id: uuid('id').defaultRandom().primaryKey(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => users.id, { onDelete: 'cascade' }),
-		name: varchar('name', { length: 100 }).notNull(),
-		slug: varchar('slug', { length: 100 }).notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),
+		id: uuid('id').defaultRandom().primaryKey(),
+		name: varchar('name', { length: 100 }).notNull(),
+		slug: varchar('slug', { length: 100 }).notNull(),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
 	},
 	(table) => [
 		index('categories_user_id_idx').on(table.userId),
@@ -118,24 +118,24 @@ export const categories = pgTable(
 export const expenses = pgTable(
 	'expenses',
 	{
+		amountCents: integer('amount_cents').notNull(),
+		categoryId: uuid('category_id').references(() => categories.id, {
+			onDelete: 'set null',
+		}),
+		createdAt: timestamp('created_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		currency: varchar('currency', { length: 3 }).default('GBP').notNull(),
+		date: date('date').notNull(),
+		description: text('description'),
 		id: uuid('id').defaultRandom().primaryKey(),
+		updatedAt: timestamp('updated_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
 		userId: text('user_id')
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 		vendor: varchar('vendor', { length: 200 }).notNull(),
-		date: date('date').notNull(),
-		amountCents: integer('amount_cents').notNull(),
-		currency: varchar('currency', { length: 3 }).default('GBP').notNull(),
-		categoryId: uuid('category_id').references(() => categories.id, {
-			onDelete: 'set null',
-		}),
-		description: text('description'),
-		createdAt: timestamp('created_at', { withTimezone: true })
-			.defaultNow()
-			.notNull(),
-		updatedAt: timestamp('updated_at', { withTimezone: true })
-			.defaultNow()
-			.notNull(),
 	},
 	(table) => [
 		index('expenses_user_id_idx').on(table.userId),
@@ -148,20 +148,20 @@ export const expenses = pgTable(
 export const conversations = pgTable(
 	'conversations',
 	{
-		id: uuid('id').defaultRandom().primaryKey(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => users.id, { onDelete: 'cascade' }),
-		title: varchar('title', { length: 200 }).notNull().default('New chat'),
-		lastMessageAt: timestamp('last_message_at', { withTimezone: true })
-			.defaultNow()
-			.notNull(),
 		createdAt: timestamp('created_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),
+		id: uuid('id').defaultRandom().primaryKey(),
+		lastMessageAt: timestamp('last_message_at', { withTimezone: true })
+			.defaultNow()
+			.notNull(),
+		title: varchar('title', { length: 200 }).notNull().default('New chat'),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
 	},
 	(table) => [
 		index('conversations_user_id_idx').on(table.userId),
@@ -175,20 +175,20 @@ export const conversations = pgTable(
 export const messages = pgTable(
 	'messages',
 	{
-		id: uuid('id').defaultRandom().primaryKey(),
+		attachmentNames: jsonb('attachment_names').$type<string[]>(),
+		content: text('content').notNull(),
+		contentHtml: text('content_html'),
 		conversationId: uuid('conversation_id')
 			.notNull()
 			.references(() => conversations.id, { onDelete: 'cascade' }),
-		userId: text('user_id')
-			.notNull()
-			.references(() => users.id, { onDelete: 'cascade' }),
-		role: varchar('role', { length: 16 }).notNull(),
-		content: text('content').notNull(),
-		contentHtml: text('content_html'),
-		attachmentNames: jsonb('attachment_names').$type<string[]>(),
 		createdAt: timestamp('created_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),
+		id: uuid('id').defaultRandom().primaryKey(),
+		role: varchar('role', { length: 16 }).notNull(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
 	},
 	(table) => [
 		index('messages_conversation_id_idx').on(table.conversationId),

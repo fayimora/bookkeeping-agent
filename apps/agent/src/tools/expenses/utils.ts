@@ -13,8 +13,8 @@ export async function resolveExpenseFilters(
 ) {
 	const filters: ListExpensesFilters = {
 		from: input.from,
-		to: input.to,
 		search: input.search?.trim(),
+		to: input.to,
 	};
 
 	if (input.categoryId) {
@@ -60,7 +60,7 @@ export async function resolveExpenseCategoryId(
 
 export function formatMoney(amountCents: number, currency: string) {
 	return new Intl.NumberFormat('en-GB', {
-		style: 'currency',
 		currency,
+		style: 'currency',
 	}).format(amountCents / 100);
 }

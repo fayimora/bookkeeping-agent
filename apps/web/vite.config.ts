@@ -17,16 +17,16 @@ export default defineConfig(({ mode }) => {
 	const allowedHosts = parseAllowedHosts(env.VITE_ALLOWED_HOSTS);
 
 	return {
-		server: {
-			port: 3001,
-			allowedHosts,
-		},
+		plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
 		preview: {
 			allowedHosts,
 		},
 		resolve: {
 			tsconfigPaths: true,
 		},
-		plugins: [devtools(), tailwindcss(), tanstackStart(), viteReact()],
+		server: {
+			allowedHosts,
+			port: 3001,
+		},
 	};
 });

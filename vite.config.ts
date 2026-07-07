@@ -1,34 +1,38 @@
 import { defineConfig } from 'vite-plus';
 
 export default defineConfig({
+	fmt: {
+		ignorePatterns: [
+			'.entire/**',
+			'.pi/**',
+			'**/node_modules/**',
+			'apps/web/.tanstack/**',
+			'apps/web/.vinxi/**',
+			'apps/web/dist/**',
+			'apps/web/src/routeTree.gen.ts',
+			'node_modules/**',
+			'packages/db/dist/**',
+		],
+		semi: true,
+		singleQuote: true,
+		sortPackageJson: true,
+	},
 	lint: {
 		ignorePatterns: [
-			'node_modules/**',
+			'.entire/**',
+			'.pi/**',
 			'**/node_modules/**',
-			'apps/web/dist/**',
-			'apps/web/.vinxi/**',
 			'apps/web/.tanstack/**',
+			'apps/web/.vinxi/**',
+			'apps/web/dist/**',
 			'apps/web/src/routeTree.gen.ts',
+			'node_modules/**',
 			'packages/db/dist/**',
 		],
 		options: {
 			typeAware: false,
 			typeCheck: false,
 		},
-	},
-	fmt: {
-		ignorePatterns: [
-			'node_modules/**',
-			'**/node_modules/**',
-			'apps/web/dist/**',
-			'apps/web/.vinxi/**',
-			'apps/web/.tanstack/**',
-			'apps/web/src/routeTree.gen.ts',
-			'packages/db/dist/**',
-		],
-		singleQuote: true,
-		semi: true,
-		sortPackageJson: true,
 	},
 	staged: {
 		'*.{js,ts,jsx,tsx,vue,svelte,json,jsonc,css,md}': 'vp check --fix',

@@ -12,6 +12,8 @@
       "!**/dist",
       "!**/.turbo",
       "!**/.nx",
+      "!**/.entire",
+      "!**/.pi",
       "!**/dev-dist",
       "!**/.zed",
       "!**/.vscode",
@@ -44,7 +46,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "useExhaustiveDependencies": "info"
       },
@@ -56,6 +58,9 @@
             "functions": ["clsx", "cva", "cn"]
           }
         }
+      },
+      "performance": {
+        "noJsxPropsBind": "off"
       },
       "style": {
         "noParameterAssign": "error",

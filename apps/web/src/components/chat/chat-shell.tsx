@@ -60,10 +60,10 @@ function createMessage(
 ): ChatMessage {
 	return {
 		attachmentNames,
-		id: crypto.randomUUID(),
-		role,
 		content,
 		html,
+		id: crypto.randomUUID(),
+		role,
 	};
 }
 
@@ -216,18 +216,18 @@ async function fileToReceiptAttachment(
 	file: File
 ): Promise<SelectedReceiptAttachment> {
 	const dataUrl = await readFileAsDataUrl(file);
-	const base64Data = dataUrl.split(',')[1];
+	const [, base64Data] = dataUrl.split(',');
 
 	if (!base64Data) {
 		throw new Error('Could not encode receipt image.');
 	}
 
 	return {
+		data: base64Data,
 		id: crypto.randomUUID(),
+		mimeType: file.type,
 		name: file.name,
 		type: 'image',
-		data: base64Data,
-		mimeType: file.type,
 	};
 }
 
@@ -242,8 +242,8 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 
 	const messagesQuery = useQuery({
-		queryKey: ['messages', conversationId],
 		queryFn: async () => await listMessages({ data: { conversationId } }),
+		queryKey: ['messages', conversationId],
 	});
 
 	const serverMessages = messagesQuery.data;
@@ -263,7 +263,7 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 	const chatMutation = useMutation({
 		mutationFn: async (input: { content: string; images: ChatImageInput[] }) =>
 			await sendChatMessage({
-				data: { conversationId, message: input.content, images: input.images },
+				data: { conversationId, images: input.images, message: input.content },
 			}),
 		onError: () => {
 			toast.error('Could not reach the bookkeeper agent');

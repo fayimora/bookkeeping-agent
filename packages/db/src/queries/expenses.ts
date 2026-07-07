@@ -14,12 +14,12 @@ const currencySchema = z
 	.transform((value) => value.toUpperCase());
 
 export const createExpenseSchema = z.object({
-	vendor: z.string().trim().min(1).max(200),
-	date: dateSchema,
 	amountCents: z.number().int().positive(),
-	currency: currencySchema.default('GBP'),
 	categoryId: z.uuid().nullable().optional(),
+	currency: currencySchema.default('GBP'),
+	date: dateSchema,
 	description: z.string().trim().min(1).nullable().optional(),
+	vendor: z.string().trim().min(1).max(200),
 });
 
 export const updateExpenseSchema = createExpenseSchema.partial();
@@ -27,8 +27,8 @@ export const updateExpenseSchema = createExpenseSchema.partial();
 export const listExpensesFiltersSchema = z.object({
 	categoryId: z.uuid().optional(),
 	from: dateSchema.optional(),
-	to: dateSchema.optional(),
 	search: z.string().trim().min(1).optional(),
+	to: dateSchema.optional(),
 });
 
 export type CreateExpenseInput = z.input<typeof createExpenseSchema>;

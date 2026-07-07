@@ -18,10 +18,10 @@ export const renameConversationSchema = z.object({
 });
 
 export const addMessageSchema = z.object({
-	role: z.enum(['user', 'assistant']),
+	attachmentNames: z.array(z.string().min(1)).nullable().optional(),
 	content: z.string().min(1),
 	contentHtml: z.string().nullable().optional(),
-	attachmentNames: z.array(z.string().min(1)).nullable().optional(),
+	role: z.enum(['user', 'assistant']),
 });
 
 export type CreateConversationInput = z.input<typeof createConversationSchema>;
@@ -178,13 +178,13 @@ export async function addMessage(
 		const [message] = await tx
 			.insert(messages)
 			.values({
-				conversationId: parsedConversationId,
-				userId: parsedUserId,
-				role: values.role,
+				attachmentNames: values.attachmentNames ?? null,
 				content: values.content,
 				contentHtml: values.contentHtml ?? null,
-				attachmentNames: values.attachmentNames ?? null,
+				conversationId: parsedConversationId,
 				createdAt: now,
+				role: values.role,
+				userId: parsedUserId,
 			})
 			.returning();
 

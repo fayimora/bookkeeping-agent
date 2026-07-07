@@ -46,13 +46,13 @@ function ExpensesPage() {
 	const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
 	const categoriesQuery = useQuery({
-		queryKey: ['categories'],
 		queryFn: async () => await listCategories(),
+		queryKey: ['categories'],
 	});
 
 	const expensesQuery = useQuery({
-		queryKey: ['expenses'],
 		queryFn: async () => await listExpenses({ data: {} }),
+		queryKey: ['expenses'],
 	});
 
 	const categoriesById = useMemo(

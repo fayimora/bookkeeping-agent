@@ -5,9 +5,9 @@ type ImportMetaWithEnv = ImportMeta & {
 };
 
 export const env = createEnv({
-	clientPrefix: 'VITE_',
 	client: {},
+	clientPrefix: 'VITE_',
+	emptyStringAsUndefined: true,
 	runtimeEnv: (import.meta as ImportMetaWithEnv).env,
 	skipValidation: !!process.env.SKIP_ENV_VALIDATION,
-	emptyStringAsUndefined: true,
 });

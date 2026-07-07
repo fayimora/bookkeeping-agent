@@ -51,8 +51,8 @@ export function ChatSidebar() {
 		useState<Conversation | null>(null);
 
 	const conversationsQuery = useQuery({
-		queryKey: ['conversations'],
 		queryFn: async () => await listConversations(),
+		queryKey: ['conversations'],
 	});
 
 	const invalidateConversations = async () => {
@@ -69,8 +69,8 @@ export function ChatSidebar() {
 
 			await invalidateConversations();
 			await navigate({
-				to: '/chat/$conversationId',
 				params: { conversationId: conversation.id },
+				to: '/chat/$conversationId',
 			});
 		},
 	});
@@ -107,8 +107,8 @@ export function ChatSidebar() {
 
 			await (next
 				? navigate({
-						to: '/chat/$conversationId',
 						params: { conversationId: next.id },
+						to: '/chat/$conversationId',
 					})
 				: navigate({ to: '/chat' }));
 		},

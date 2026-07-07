@@ -115,10 +115,10 @@ async function buildUpdateExpenseValues(
 
 export function expenseTools(userId: string): ToolDefinition[] {
 	const listExpensesTool = defineTool({
-		name: 'list_expenses',
 		description:
 			'List saved expenses, optionally filtered by date range, category, or text search.',
 		input: listExpensesParameters,
+		name: 'list_expenses',
 		run: async ({ input }) => {
 			const filters = await resolveExpenseFilters(userId, input);
 			const expenses = await listExpenses(userId, filters);
@@ -128,9 +128,9 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	});
 
 	const getExpenseTool = defineTool({
-		name: 'get_expense',
 		description: 'Get one saved expense by id.',
 		input: getExpenseParameters,
+		name: 'get_expense',
 		run: async ({ input }) => {
 			const expense = await getExpenseById(userId, input.id);
 
@@ -143,49 +143,50 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	});
 
 	const getSpendingTotalTool = defineTool({
-		name: 'get_spending_total',
 		description:
 			'Calculate spending totals from saved expenses, optionally filtered by date range, category, or text search.',
 		input: listExpensesParameters,
+		name: 'get_spending_total',
 		run: async ({ input }) => {
 			const filters = await resolveExpenseFilters(userId, input);
 			const expenses = await listExpenses(userId, filters);
 			const totalsByCurrency = expenses.reduce<Record<string, number>>(
-				(totals, expense) => {
-					totals[expense.currency] =
-						(totals[expense.currency] ?? 0) + expense.amountCents;
-					return totals;
+				(totalsByCurrencyAccumulator, expense) => {
+					totalsByCurrencyAccumulator[expense.currency] =
+						(totalsByCurrencyAccumulator[expense.currency] ?? 0) +
+						expense.amountCents;
+					return totalsByCurrencyAccumulator;
 				},
 				{}
 			);
 
 			const totals = Object.entries(totalsByCurrency).map(
 				([currency, amountCents]) => ({
-					currency,
 					amountCents,
+					currency,
 					formatted: formatMoney(amountCents, currency),
 				})
 			);
 
-			return JSON.stringify({ count: expenses.length, totals, filters });
+			return JSON.stringify({ count: expenses.length, filters, totals });
 		},
 	});
 
 	const createExpenseTool = defineTool({
-		name: 'create_expense',
 		description:
 			'Create a saved expense after the vendor, date, amount, currency, and category are clear. Amount must be in minor units, such as pence or cents.',
 		input: createExpenseParameters,
+		name: 'create_expense',
 		run: async ({ input }) => {
 			const categoryId = await resolveExpenseCategoryId(userId, input);
 
 			const expense = await createExpense(userId, {
-				vendor: input.vendor.trim(),
-				date: input.date,
 				amountCents: input.amountCents,
-				currency: input.currency?.trim().toUpperCase() ?? 'GBP',
 				categoryId,
+				currency: input.currency?.trim().toUpperCase() ?? 'GBP',
+				date: input.date,
 				description: input.description?.trim(),
+				vendor: input.vendor.trim(),
 			});
 
 			return JSON.stringify({ expense });
@@ -193,10 +194,10 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	});
 
 	const updateExpenseTool = defineTool({
-		name: 'update_expense',
 		description:
 			'Update a saved expense by id after the requested field changes are clear. Amount must be in minor units, such as pence or cents.',
 		input: updateExpenseParameters,
+		name: 'update_expense',
 		run: async ({ input }) => {
 			const values = await buildUpdateExpenseValues(userId, input);
 			const expense = await updateExpense(userId, input.id, values);
@@ -210,9 +211,9 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	});
 
 	const deleteExpenseTool = defineTool({
-		name: 'delete_expense',
 		description: 'Delete a saved expense by id only after user confirmation.',
 		input: deleteExpenseParameters,
+		name: 'delete_expense',
 		run: async ({ input }) => {
 			const expense = await deleteExpense(userId, input.id);
 

@@ -18,16 +18,16 @@ import {
 } from '../lib/chat-attachments';
 
 const chatImageSchema = z.object({
-	type: z.literal('image'),
 	data: z.string().min(1).max(maxImageDataLength),
 	mimeType: z.enum(supportedImageTypes),
 	name: z.string().trim().min(1).max(255).optional(),
+	type: z.literal('image'),
 });
 
 const sendChatMessageInputSchema = z.object({
 	conversationId: z.uuid(),
-	message: z.string().trim().min(1).max(4000),
 	images: z.array(chatImageSchema).max(maxAttachments).optional(),
+	message: z.string().trim().min(1).max(4000),
 });
 
 const defaultConversationTitle = 'New chat';
@@ -147,9 +147,9 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
 			.filter((name): name is string => Boolean(name));
 
 		await addMessage(userId, conversation.id, {
-			role: 'user',
-			content: data.message,
 			attachmentNames: attachmentNames?.length ? attachmentNames : null,
+			content: data.message,
+			role: 'user',
 		});
 
 		if (conversation.title === defaultConversationTitle) {
@@ -170,8 +170,8 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
 			'bookkeeper',
 			`${userId}::${conversation.id}`,
 			{
-				message: data.message,
 				images,
+				message: data.message,
 			}
 		);
 
@@ -179,9 +179,9 @@ export const sendChatMessage = createServerFn({ method: 'POST' })
 		const messageHtml = renderMarkdownToSafeHtml(message);
 
 		await addMessage(userId, conversation.id, {
-			role: 'assistant',
 			content: message,
 			contentHtml: messageHtml,
+			role: 'assistant',
 		});
 
 		return {

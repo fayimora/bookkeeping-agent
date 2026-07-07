@@ -34,18 +34,18 @@ export const listExpensesParameters = object({
 			regex(datePattern)
 		)
 	),
-	to: optional(
-		pipe(
-			string(),
-			description('End date in YYYY-MM-DD format.'),
-			regex(datePattern)
-		)
-	),
 	search: optional(
 		pipe(
 			string(),
 			description('Search text for vendor or description.'),
 			minLength(1)
+		)
+	),
+	to: optional(
+		pipe(
+			string(),
+			description('End date in YYYY-MM-DD format.'),
+			regex(datePattern)
 		)
 	),
 });
@@ -65,30 +65,11 @@ export const getExpenseParameters = object({
 export type GetExpenseToolInput = InferOutput<typeof getExpenseParameters>;
 
 export const createExpenseParameters = object({
-	vendor: pipe(
-		string(),
-		description('Merchant or vendor name.'),
-		minLength(1),
-		maxLength(200)
-	),
-	date: pipe(
-		string(),
-		description('Expense date in YYYY-MM-DD format.'),
-		regex(datePattern)
-	),
 	amountCents: pipe(
 		number(),
 		description('Amount in minor units, for example £12.50 is 1250.'),
 		integer(),
 		minValue(1)
-	),
-	currency: optional(
-		pipe(
-			string(),
-			description('Three-letter currency code. Defaults to GBP.'),
-			minLength(3),
-			maxLength(3)
-		)
 	),
 	categoryId: optional(
 		pipe(string(), description('Category UUID. Use this or categorySlug.'))
@@ -102,12 +83,31 @@ export const createExpenseParameters = object({
 			minLength(1)
 		)
 	),
+	currency: optional(
+		pipe(
+			string(),
+			description('Three-letter currency code. Defaults to GBP.'),
+			minLength(3),
+			maxLength(3)
+		)
+	),
+	date: pipe(
+		string(),
+		description('Expense date in YYYY-MM-DD format.'),
+		regex(datePattern)
+	),
 	description: optional(
 		pipe(
 			string(),
 			description('Short optional note or description.'),
 			minLength(1)
 		)
+	),
+	vendor: pipe(
+		string(),
+		description('Merchant or vendor name.'),
+		minLength(1),
+		maxLength(200)
 	),
 });
 
@@ -116,36 +116,12 @@ export type CreateExpenseToolInput = InferOutput<
 >;
 
 export const updateExpenseParameters = object({
-	id: expenseIdParameter,
-	vendor: optional(
-		pipe(
-			string(),
-			description('Updated merchant or vendor name.'),
-			minLength(1),
-			maxLength(200)
-		)
-	),
-	date: optional(
-		pipe(
-			string(),
-			description('Updated expense date in YYYY-MM-DD format.'),
-			regex(datePattern)
-		)
-	),
 	amountCents: optional(
 		pipe(
 			number(),
 			description('Updated amount in minor units, for example £12.50 is 1250.'),
 			integer(),
 			minValue(1)
-		)
-	),
-	currency: optional(
-		pipe(
-			string(),
-			description('Updated three-letter currency code.'),
-			minLength(3),
-			maxLength(3)
 		)
 	),
 	categoryId: optional(
@@ -166,6 +142,24 @@ export const updateExpenseParameters = object({
 	clearCategory: optional(
 		pipe(boolean(), description('Set true to remove the expense category.'))
 	),
+	clearDescription: optional(
+		pipe(boolean(), description('Set true to remove the expense description.'))
+	),
+	currency: optional(
+		pipe(
+			string(),
+			description('Updated three-letter currency code.'),
+			minLength(3),
+			maxLength(3)
+		)
+	),
+	date: optional(
+		pipe(
+			string(),
+			description('Updated expense date in YYYY-MM-DD format.'),
+			regex(datePattern)
+		)
+	),
 	description: optional(
 		pipe(
 			string(),
@@ -173,8 +167,14 @@ export const updateExpenseParameters = object({
 			minLength(1)
 		)
 	),
-	clearDescription: optional(
-		pipe(boolean(), description('Set true to remove the expense description.'))
+	id: expenseIdParameter,
+	vendor: optional(
+		pipe(
+			string(),
+			description('Updated merchant or vendor name.'),
+			minLength(1),
+			maxLength(200)
+		)
 	),
 });
 

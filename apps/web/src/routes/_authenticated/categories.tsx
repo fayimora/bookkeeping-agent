@@ -44,8 +44,8 @@ function CategoriesPage() {
 	);
 
 	const categoriesQuery = useQuery({
-		queryKey: ['categories'],
 		queryFn: async () => await listCategories(),
+		queryKey: ['categories'],
 	});
 
 	const invalidateCategories = async () => {

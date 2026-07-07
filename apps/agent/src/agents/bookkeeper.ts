@@ -27,8 +27,8 @@ export default defineAgent(({ id: instanceId }) => {
 	const userId = instanceId.split('::')[0] ?? instanceId;
 
 	return {
-		model: env.AGENT_MODEL,
 		instructions: bookkeeperInstructions,
+		model: env.AGENT_MODEL,
 		skills: [spendAnalysis, receiptEntry],
 		tools: bookkeeperTools(userId),
 	};

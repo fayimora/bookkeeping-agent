@@ -49,7 +49,6 @@ export type CreateCategoryToolInput = InferOutput<
 
 export const updateCategoryParameters = object({
 	id: optional(categoryIdParameter),
-	slug: optional(categorySlugParameter),
 	name: optional(categoryNameParameter),
 	newSlug: optional(
 		pipe(
@@ -59,6 +58,7 @@ export const updateCategoryParameters = object({
 			maxLength(100)
 		)
 	),
+	slug: optional(categorySlugParameter),
 });
 
 export type UpdateCategoryToolInput = InferOutput<

@@ -14,6 +14,7 @@ const query: PostgresQuery = async (text, params) => {
 };
 
 export default postgres({
+	close: () => pool.end(),
 	query,
 	transaction: async (fn) => {
 		const client = await pool.connect();
@@ -37,5 +38,4 @@ export default postgres({
 			client.release();
 		}
 	},
-	close: () => pool.end(),
 });
