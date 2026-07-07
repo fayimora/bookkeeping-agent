@@ -1,7 +1,9 @@
 import { hashPassword } from 'better-auth/crypto';
+import { eq, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 
-import { accounts, categories, users } from './schema';
+import { accounts, categories, expenses, users } from './schema';
+import { aliceExpenses } from './seed-data/alice-expenses';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -43,6 +45,7 @@ const defaultCategories = [
 ];
 
 for (const user of seededUsers) {
+	// biome-ignore lint/performance/noAwaitInLoops: Seed writes depend on each user's rows existing before related rows.
 	await db
 		.insert(users)
 		.values({
@@ -92,8 +95,56 @@ for (const user of seededUsers) {
 		.onConflictDoNothing({
 			target: [categories.userId, categories.slug],
 		});
+
+	if (user.id === 'seed-user-alice') {
+		const aliceCategories = await db
+			.select()
+			.from(categories)
+			.where(eq(categories.userId, user.id));
+		const categoryIdsBySlug = new Map(
+			aliceCategories.map((category) => [category.slug, category.id])
+		);
+
+		const aliceExpenseValues = aliceExpenses.map((expense) => {
+			const categoryId = categoryIdsBySlug.get(expense.categorySlug);
+
+			if (!categoryId) {
+				throw new Error(
+					`Missing category for Alice expense: ${expense.categorySlug}`
+				);
+			}
+
+			return {
+				amountCents: expense.amountCents,
+				categoryId,
+				currency: 'GBP',
+				date: expense.date,
+				description: expense.description,
+				id: expense.id,
+				userId: user.id,
+				vendor: expense.vendor,
+			};
+		});
+
+		await db
+			.insert(expenses)
+			.values(aliceExpenseValues)
+			.onConflictDoUpdate({
+				set: {
+					amountCents: sql`excluded.amount_cents`,
+					categoryId: sql`excluded.category_id`,
+					currency: sql`excluded.currency`,
+					date: sql`excluded.date`,
+					description: sql`excluded.description`,
+					updatedAt: new Date(),
+					userId: sql`excluded.user_id`,
+					vendor: sql`excluded.vendor`,
+				},
+				target: expenses.id,
+			});
+	}
 }
 
 console.log(
-	`Seeded ${seededUsers.length} users and ${defaultCategories.length} default categories per user.`
+	`Seeded ${seededUsers.length} users, ${defaultCategories.length} default categories per user, and ${aliceExpenses.length} expenses for Alice.`
 );
