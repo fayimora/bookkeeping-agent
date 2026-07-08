@@ -1,4 +1,4 @@
-import { env } from '@bookeeping-agent/env/server';
+import { env } from '@bookeeping-agent/env/agent';
 import { type PostgresQuery, postgres } from '@flue/postgres';
 import pg from 'pg';
 

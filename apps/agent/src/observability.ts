@@ -1,4 +1,4 @@
-import { env } from '@bookeeping-agent/env/server';
+import { env } from '@bookeeping-agent/env/agent';
 import { type FlueEvent, observe, type PromptUsage } from '@flue/runtime';
 
 const serviceName = 'bookkeeping-agent-service';

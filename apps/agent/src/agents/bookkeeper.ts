@@ -1,4 +1,4 @@
-import { env } from '@bookeeping-agent/env/server';
+import { env } from '@bookeeping-agent/env/agent';
 import { type AgentRouteHandler, defineAgent } from '@flue/runtime';
 import { bookkeeperInstructions } from '../instructions/bookkeeper.ts';
 import { registerAgentObservability } from '../observability.ts';

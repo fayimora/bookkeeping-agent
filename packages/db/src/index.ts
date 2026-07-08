@@ -1,4 +1,4 @@
-import { env } from '@bookeeping-agent/env/server';
+import { env } from '@bookeeping-agent/env/db';
 import { drizzle } from 'drizzle-orm/node-postgres';
 
 import { schema } from './schema';
