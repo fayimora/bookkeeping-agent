@@ -40,6 +40,7 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: production
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD}@postgres:5432/bookkeeping
       CORS_ORIGIN: ${CORS_ORIGIN}
       FLUE_BASE_URL: http://agent:3583
