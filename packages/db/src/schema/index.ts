@@ -1,4 +1,3 @@
-import { relations } from 'drizzle-orm';
 import {
 	boolean,
 	date,
@@ -199,85 +198,14 @@ export const messages = pgTable(
 	]
 );
 
-export const usersRelations = relations(users, ({ many }) => ({
-	accounts: many(accounts),
-	categories: many(categories),
-	conversations: many(conversations),
-	expenses: many(expenses),
-	messages: many(messages),
-	sessions: many(sessions),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-	user: one(users, {
-		fields: [sessions.userId],
-		references: [users.id],
-	}),
-}));
-
-export const accountsRelations = relations(accounts, ({ one }) => ({
-	user: one(users, {
-		fields: [accounts.userId],
-		references: [users.id],
-	}),
-}));
-
-export const categoriesRelations = relations(categories, ({ many, one }) => ({
-	expenses: many(expenses),
-	user: one(users, {
-		fields: [categories.userId],
-		references: [users.id],
-	}),
-}));
-
-export const expensesRelations = relations(expenses, ({ one }) => ({
-	category: one(categories, {
-		fields: [expenses.categoryId],
-		references: [categories.id],
-	}),
-	user: one(users, {
-		fields: [expenses.userId],
-		references: [users.id],
-	}),
-}));
-
-export const conversationsRelations = relations(
-	conversations,
-	({ many, one }) => ({
-		messages: many(messages),
-		user: one(users, {
-			fields: [conversations.userId],
-			references: [users.id],
-		}),
-	})
-);
-
-export const messagesRelations = relations(messages, ({ one }) => ({
-	conversation: one(conversations, {
-		fields: [messages.conversationId],
-		references: [conversations.id],
-	}),
-	user: one(users, {
-		fields: [messages.userId],
-		references: [users.id],
-	}),
-}));
-
 export const schema = {
 	accounts,
-	accountsRelations,
 	categories,
-	categoriesRelations,
 	conversations,
-	conversationsRelations,
 	expenses,
-	expensesRelations,
 	messages,
-	messagesRelations,
 	sessions,
-	sessionsRelations,
 	users,
-	usersRelations,
 	verifications,
 };
 
