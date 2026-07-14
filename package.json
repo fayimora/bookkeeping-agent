@@ -18,7 +18,11 @@
     }
   },
   "type": "module",
+  "overrides": {
+    "drizzle-orm": "1.0.0-rc.4"
+  },
   "scripts": {
+    "prepare-effect": "./scripts/prepare-effect.sh",
     "dev": "vp run -r dev",
     "build": "vp run -r build",
     "check-types": "vp run -r check-types",
