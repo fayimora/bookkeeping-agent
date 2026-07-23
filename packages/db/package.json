@@ -27,13 +27,13 @@
     "@effect/sql-pg": "4.0.0-beta.97",
     "better-auth": "^1.6.23",
     "drizzle-orm": "1.0.0-rc.4",
-    "effect": "4.0.0-beta.97",
+    "effect": "catalog:",
     "pg": "^8.22.0",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@bookeeping-agent/config": "workspace:*",
-    "@effect/vitest": "4.0.0-beta.97",
+    "@effect/vitest": "catalog:",
     "@types/pg": "^8.16.0",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "catalog:"
