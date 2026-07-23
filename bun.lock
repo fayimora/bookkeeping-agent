@@ -93,16 +93,29 @@
         "@effect/sql-pg": "4.0.0-beta.97",
         "better-auth": "^1.6.23",
         "drizzle-orm": "1.0.0-rc.4",
-        "effect": "4.0.0-beta.97",
+        "effect": "catalog:",
         "pg": "^8.22.0",
         "zod": "catalog:",
       },
       "devDependencies": {
         "@bookeeping-agent/config": "workspace:*",
-        "@effect/vitest": "4.0.0-beta.97",
+        "@effect/vitest": "catalog:",
         "@types/pg": "^8.16.0",
         "drizzle-kit": "1.0.0-rc.4",
         "typescript": "catalog:",
+      },
+    },
+    "packages/domain": {
+      "name": "@bookeeping-agent/domain",
+      "version": "0.0.0",
+      "dependencies": {
+        "effect": "catalog:",
+      },
+      "devDependencies": {
+        "@bookeeping-agent/config": "workspace:*",
+        "@effect/vitest": "catalog:",
+        "typescript": "catalog:",
+        "vitest": "catalog:",
       },
     },
     "packages/env": {
@@ -148,13 +161,16 @@
     "drizzle-orm": "1.0.0-rc.4",
   },
   "catalog": {
+    "@effect/vitest": "4.0.0-beta.97",
     "@flue/cli": "1.0.0-beta.9",
     "@types/node": "^24",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "effect": "4.0.0-beta.97",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "typescript": "^6",
+    "vitest": "^4.1.9",
     "zod": "^4.1.13",
   },
   "packages": {
@@ -319,6 +335,8 @@
     "@bookeeping-agent/config": ["@bookeeping-agent/config@workspace:packages/config"],
 
     "@bookeeping-agent/db": ["@bookeeping-agent/db@workspace:packages/db"],
+
+    "@bookeeping-agent/domain": ["@bookeeping-agent/domain@workspace:packages/domain"],
 
     "@bookeeping-agent/env": ["@bookeeping-agent/env@workspace:packages/env"],
 
