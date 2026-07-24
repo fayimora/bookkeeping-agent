@@ -1,11 +1,18 @@
-import { and, desc, eq, gte, ilike, lte, or, type SQL } from 'drizzle-orm';
+import {
+	CreateExpenseInput as DomainCreateExpenseInput,
+	ListExpensesFilters as DomainListExpensesFilters,
+	UpdateExpenseInput as DomainUpdateExpenseInput,
+	ExpenseId,
+	UserId,
+} from '@bookeeping-agent/domain';
+import { Effect, Schema } from 'effect';
 import { z } from 'zod';
 
-import { db } from '..';
-import { categories, expenses } from '../schema';
+import { ExpensesRepo } from '#db/repositories';
+import { repositoryRuntime } from '#db/runtime';
 
-const expenseIdSchema = z.uuid();
-const userIdSchema = z.string().min(1);
+// Temporary framework compatibility schemas. Removed when the web server moves
+// to the domain package's Standard Schema adapters in Chunk 4.
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const currencySchema = z
 	.string()
@@ -21,9 +28,7 @@ export const createExpenseSchema = z.object({
 	description: z.string().trim().min(1).nullable().optional(),
 	vendor: z.string().trim().min(1).max(200),
 });
-
 export const updateExpenseSchema = createExpenseSchema.partial();
-
 export const listExpensesFiltersSchema = z.object({
 	categoryId: z.uuid().optional(),
 	from: dateSchema.optional(),
@@ -35,120 +40,78 @@ export type CreateExpenseInput = z.input<typeof createExpenseSchema>;
 export type UpdateExpenseInput = z.input<typeof updateExpenseSchema>;
 export type ListExpensesFilters = z.input<typeof listExpensesFiltersSchema>;
 
-async function ensureCategoryBelongsToUser(userId: string, categoryId: string) {
-	const [category] = await db
-		.select({ id: categories.id })
-		.from(categories)
-		.where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
-		.limit(1);
-
-	if (!category) {
-		throw new Error('Category does not belong to the authenticated user.');
-	}
-}
-
-export async function listExpenses(
+export function listExpenses(
 	userId: string,
 	filters: ListExpensesFilters = {}
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const parsedFilters = listExpensesFiltersSchema.parse(filters);
-	const conditions: SQL[] = [eq(expenses.userId, parsedUserId)];
-
-	if (parsedFilters.categoryId) {
-		conditions.push(eq(expenses.categoryId, parsedFilters.categoryId));
-	}
-
-	if (parsedFilters.from) {
-		conditions.push(gte(expenses.date, parsedFilters.from));
-	}
-
-	if (parsedFilters.to) {
-		conditions.push(lte(expenses.date, parsedFilters.to));
-	}
-
-	if (parsedFilters.search) {
-		const searchPattern = `%${parsedFilters.search}%`;
-		const searchCondition = or(
-			ilike(expenses.vendor, searchPattern),
-			ilike(expenses.description, searchPattern)
-		);
-
-		if (searchCondition) {
-			conditions.push(searchCondition);
-		}
-	}
-
-	return await db
-		.select()
-		.from(expenses)
-		.where(and(...conditions))
-		.orderBy(desc(expenses.date), desc(expenses.createdAt));
-}
-
-export async function getExpenseById(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const expenseId = expenseIdSchema.parse(id);
-	const [expense] = await db
-		.select()
-		.from(expenses)
-		.where(and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId)))
-		.limit(1);
-
-	return expense ?? null;
-}
-
-export async function createExpense(userId: string, input: CreateExpenseInput) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const values = createExpenseSchema.parse(input);
-
-	if (values.categoryId) {
-		await ensureCategoryBelongsToUser(parsedUserId, values.categoryId);
-	}
-
-	const [expense] = await db
-		.insert(expenses)
-		.values({
-			...values,
-			userId: parsedUserId,
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const parsedFilters = yield* Schema.decodeUnknownEffect(
+				DomainListExpensesFilters
+			)(filters);
+			const repo = yield* ExpensesRepo;
+			const expenses = yield* repo.list(parsedUserId, parsedFilters);
+			return Array.from(expenses);
 		})
-		.returning();
-
-	return expense;
+	);
 }
 
-export async function updateExpense(
+export function getExpenseById(userId: string, id: string) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const expenseId = yield* Schema.decodeUnknownEffect(ExpenseId)(id);
+			const repo = yield* ExpensesRepo;
+			return yield* repo
+				.getById(parsedUserId, expenseId)
+				.pipe(Effect.catchTag('ExpenseNotFound', () => Effect.succeed(null)));
+		})
+	);
+}
+
+export function createExpense(userId: string, input: CreateExpenseInput) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const values = yield* Schema.decodeUnknownEffect(
+				DomainCreateExpenseInput
+			)(input);
+			const repo = yield* ExpensesRepo;
+			return yield* repo.create(parsedUserId, values);
+		})
+	);
+}
+
+export function updateExpense(
 	userId: string,
 	id: string,
 	input: UpdateExpenseInput
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const expenseId = expenseIdSchema.parse(id);
-	const values = updateExpenseSchema.parse(input);
-
-	if (values.categoryId) {
-		await ensureCategoryBelongsToUser(parsedUserId, values.categoryId);
-	}
-
-	const [expense] = await db
-		.update(expenses)
-		.set({
-			...values,
-			updatedAt: new Date(),
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const expenseId = yield* Schema.decodeUnknownEffect(ExpenseId)(id);
+			const values = yield* Schema.decodeUnknownEffect(
+				DomainUpdateExpenseInput
+			)(input);
+			const repo = yield* ExpensesRepo;
+			return yield* repo
+				.update(parsedUserId, expenseId, values)
+				.pipe(Effect.catchTag('ExpenseNotFound', () => Effect.succeed(null)));
 		})
-		.where(and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId)))
-		.returning();
-
-	return expense ?? null;
+	);
 }
 
-export async function deleteExpense(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const expenseId = expenseIdSchema.parse(id);
-	const [expense] = await db
-		.delete(expenses)
-		.where(and(eq(expenses.id, expenseId), eq(expenses.userId, parsedUserId)))
-		.returning();
-
-	return expense ?? null;
+export function deleteExpense(userId: string, id: string) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const expenseId = yield* Schema.decodeUnknownEffect(ExpenseId)(id);
+			const repo = yield* ExpensesRepo;
+			return yield* repo
+				.delete(parsedUserId, expenseId)
+				.pipe(Effect.catchTag('ExpenseNotFound', () => Effect.succeed(null)));
+		})
+	);
 }

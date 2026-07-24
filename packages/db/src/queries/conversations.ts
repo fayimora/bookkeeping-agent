@@ -1,22 +1,21 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import {
+	ConversationId,
+	AddMessageInput as DomainAddMessageInput,
+	CreateConversationInput as DomainCreateConversationInput,
+	RenameConversationInput as DomainRenameConversationInput,
+	UserId,
+} from '@bookeeping-agent/domain';
+import { Effect, Schema } from 'effect';
 import { z } from 'zod';
 
-import { db } from '..';
-import { conversations, messages } from '../schema';
-
-const conversationIdSchema = z.uuid();
-const userIdSchema = z.string().min(1);
+import { ConversationsRepo } from '#db/repositories';
+import { repositoryRuntime } from '#db/runtime';
 
 const titleSchema = z.string().trim().min(1).max(200);
-
 export const createConversationSchema = z.object({
 	title: titleSchema.optional(),
 });
-
-export const renameConversationSchema = z.object({
-	title: titleSchema,
-});
-
+export const renameConversationSchema = z.object({ title: titleSchema });
 export const addMessageSchema = z.object({
 	attachmentNames: z.array(z.string().min(1)).nullable().optional(),
 	content: z.string().min(1),
@@ -28,171 +27,125 @@ export type CreateConversationInput = z.input<typeof createConversationSchema>;
 export type RenameConversationInput = z.input<typeof renameConversationSchema>;
 export type AddMessageInput = z.input<typeof addMessageSchema>;
 
-async function ensureConversationBelongsToUser(
-	userId: string,
-	conversationId: string
-) {
-	const [conversation] = await db
-		.select({ id: conversations.id })
-		.from(conversations)
-		.where(
-			and(
-				eq(conversations.id, conversationId),
-				eq(conversations.userId, userId)
-			)
-		)
-		.limit(1);
-
-	if (!conversation) {
-		throw new Error('Conversation does not belong to the authenticated user.');
-	}
+export function listConversations(userId: string) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const repo = yield* ConversationsRepo;
+			const conversations = yield* repo.list(parsedUserId);
+			return Array.from(conversations);
+		})
+	);
 }
 
-export async function listConversations(userId: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-
-	return await db
-		.select()
-		.from(conversations)
-		.where(eq(conversations.userId, parsedUserId))
-		.orderBy(desc(conversations.lastMessageAt), desc(conversations.createdAt));
+export function getConversationById(userId: string, id: string) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const conversationId =
+				yield* Schema.decodeUnknownEffect(ConversationId)(id);
+			const repo = yield* ConversationsRepo;
+			return yield* repo
+				.getById(parsedUserId, conversationId)
+				.pipe(
+					Effect.catchTag('ConversationNotFound', () => Effect.succeed(null))
+				);
+		})
+	);
 }
 
-export async function getConversationById(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const conversationId = conversationIdSchema.parse(id);
-	const [conversation] = await db
-		.select()
-		.from(conversations)
-		.where(
-			and(
-				eq(conversations.id, conversationId),
-				eq(conversations.userId, parsedUserId)
-			)
-		)
-		.limit(1);
-
-	return conversation ?? null;
-}
-
-export async function createConversation(
+export function createConversation(
 	userId: string,
 	input: CreateConversationInput = {}
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const values = createConversationSchema.parse(input);
-
-	const [conversation] = await db
-		.insert(conversations)
-		.values({
-			userId: parsedUserId,
-			...(values.title ? { title: values.title } : {}),
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const values = yield* Schema.decodeUnknownEffect(
+				DomainCreateConversationInput
+			)(input);
+			const repo = yield* ConversationsRepo;
+			return yield* repo.create(parsedUserId, values);
 		})
-		.returning();
-
-	return conversation;
+	);
 }
 
-export async function renameConversation(
+export function renameConversation(
 	userId: string,
 	id: string,
 	input: RenameConversationInput
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const conversationId = conversationIdSchema.parse(id);
-	const { title } = renameConversationSchema.parse(input);
-
-	const [conversation] = await db
-		.update(conversations)
-		.set({ title, updatedAt: new Date() })
-		.where(
-			and(
-				eq(conversations.id, conversationId),
-				eq(conversations.userId, parsedUserId)
-			)
-		)
-		.returning();
-
-	return conversation ?? null;
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const conversationId =
+				yield* Schema.decodeUnknownEffect(ConversationId)(id);
+			const values = yield* Schema.decodeUnknownEffect(
+				DomainRenameConversationInput
+			)(input);
+			const repo = yield* ConversationsRepo;
+			return yield* repo
+				.rename(parsedUserId, conversationId, values)
+				.pipe(
+					Effect.catchTag('ConversationNotFound', () => Effect.succeed(null))
+				);
+		})
+	);
 }
 
-export async function deleteConversation(userId: string, id: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const conversationId = conversationIdSchema.parse(id);
-
-	const [conversation] = await db
-		.delete(conversations)
-		.where(
-			and(
-				eq(conversations.id, conversationId),
-				eq(conversations.userId, parsedUserId)
-			)
-		)
-		.returning();
-
-	return conversation ?? null;
+export function deleteConversation(userId: string, id: string) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const conversationId =
+				yield* Schema.decodeUnknownEffect(ConversationId)(id);
+			const repo = yield* ConversationsRepo;
+			return yield* repo
+				.delete(parsedUserId, conversationId)
+				.pipe(
+					Effect.catchTag('ConversationNotFound', () => Effect.succeed(null))
+				);
+		})
+	);
 }
 
-export async function listMessages(userId: string, conversationId: string) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const parsedConversationId = conversationIdSchema.parse(conversationId);
-
-	await ensureConversationBelongsToUser(parsedUserId, parsedConversationId);
-
-	return await db
-		.select()
-		.from(messages)
-		.where(eq(messages.conversationId, parsedConversationId))
-		.orderBy(asc(messages.createdAt));
+export function listMessages(userId: string, conversationId: string) {
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const parsedConversationId =
+				yield* Schema.decodeUnknownEffect(ConversationId)(conversationId);
+			const repo = yield* ConversationsRepo;
+			const messages = yield* repo.listMessages(
+				parsedUserId,
+				parsedConversationId
+			);
+			return messages.map((message) => ({
+				...message,
+				attachmentNames:
+					message.attachmentNames === null
+						? null
+						: Array.from(message.attachmentNames),
+			}));
+		})
+	);
 }
 
-export async function addMessage(
+export function addMessage(
 	userId: string,
 	conversationId: string,
 	input: AddMessageInput
 ) {
-	const parsedUserId = userIdSchema.parse(userId);
-	const parsedConversationId = conversationIdSchema.parse(conversationId);
-	const values = addMessageSchema.parse(input);
-
-	return await db.transaction(async (tx) => {
-		const [conversation] = await tx
-			.select({ id: conversations.id })
-			.from(conversations)
-			.where(
-				and(
-					eq(conversations.id, parsedConversationId),
-					eq(conversations.userId, parsedUserId)
-				)
-			)
-			.limit(1);
-
-		if (!conversation) {
-			throw new Error(
-				'Conversation does not belong to the authenticated user.'
+	return repositoryRuntime.runPromise(
+		Effect.gen(function* () {
+			const parsedUserId = yield* Schema.decodeUnknownEffect(UserId)(userId);
+			const parsedConversationId =
+				yield* Schema.decodeUnknownEffect(ConversationId)(conversationId);
+			const values = yield* Schema.decodeUnknownEffect(DomainAddMessageInput)(
+				input
 			);
-		}
-
-		const now = new Date();
-
-		const [message] = await tx
-			.insert(messages)
-			.values({
-				attachmentNames: values.attachmentNames ?? null,
-				content: values.content,
-				contentHtml: values.contentHtml ?? null,
-				conversationId: parsedConversationId,
-				createdAt: now,
-				role: values.role,
-				userId: parsedUserId,
-			})
-			.returning();
-
-		await tx
-			.update(conversations)
-			.set({ lastMessageAt: now, updatedAt: now })
-			.where(eq(conversations.id, parsedConversationId));
-
-		return message;
-	});
+			const repo = yield* ConversationsRepo;
+			return yield* repo.addMessage(parsedUserId, parsedConversationId, values);
+		})
+	);
 }

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./agent": "./src/agent.ts",
+    "./database": "./src/database.ts",
     "./db": "./src/db.ts",
     "./server": "./src/server.ts",
     "./web": "./src/web.ts"
@@ -14,6 +15,7 @@
   },
   "dependencies": {
     "@t3-oss/env-core": "^0.13.1",
+    "effect": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
