@@ -9,8 +9,16 @@
       "default": "./src/*.ts"
     }
   },
+  "imports": {
+    "#db/database": "./src/database.ts",
+    "#db/errors": "./src/errors.ts",
+    "#db/repositories": "./src/repositories/index.ts",
+    "#db/runtime": "./src/runtime.ts",
+    "#db/schema": "./src/schema/index.ts"
+  },
   "scripts": {
     "check-types": "tsc --noEmit",
+    "test": "vitest run",
     "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio",
@@ -24,6 +32,7 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.23",
     "@bookeeping-agent/env": "workspace:*",
+    "@bookeeping-agent/domain": "workspace:*",
     "@effect/sql-pg": "4.0.0-beta.97",
     "better-auth": "^1.6.23",
     "drizzle-orm": "1.0.0-rc.4",
@@ -36,6 +45,7 @@
     "@effect/vitest": "catalog:",
     "@types/pg": "^8.16.0",
     "drizzle-kit": "1.0.0-rc.4",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
