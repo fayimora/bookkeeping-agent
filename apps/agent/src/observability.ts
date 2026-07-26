@@ -1,4 +1,3 @@
-import { env } from '@bookeeping-agent/env/agent';
 import { type FlueEvent, observe, type PromptUsage } from '@flue/runtime';
 
 const serviceName = 'bookkeeping-agent-service';
@@ -45,7 +44,10 @@ const summaryOmittedFields = new Set([
 	'usage',
 ]);
 
-type ObservabilityMode = Exclude<typeof env.AGENT_OBSERVABILITY, 'off'>;
+export type AgentObservability = 'off' | 'summary' | 'verbose';
+type ObservabilityMode = Exclude<AgentObservability, 'off'>;
+
+let observabilityRegistered = false;
 
 function usageSummary(usage?: PromptUsage) {
 	if (!usage) {
@@ -172,8 +174,11 @@ function writeLog(event: FlueEvent, mode: ObservabilityMode) {
 	}
 }
 
-export function registerAgentObservability() {
-	const mode = env.AGENT_OBSERVABILITY;
+export function registerAgentObservability(mode: AgentObservability) {
+	if (observabilityRegistered) {
+		return;
+	}
+	observabilityRegistered = true;
 
 	if (mode === 'off') {
 		return;

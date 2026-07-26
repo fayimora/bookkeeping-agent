@@ -6,21 +6,26 @@
     "build": "flue build --target node",
     "dev": "flue dev --target node",
     "start": "node dist/server.mjs",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@bookeeping-agent/db": "workspace:*",
+    "@bookeeping-agent/domain": "workspace:*",
     "@bookeeping-agent/env": "workspace:*",
     "@flue/postgres": "1.0.0-beta.9",
     "@flue/runtime": "1.0.0-beta.9",
+    "effect": "catalog:",
     "pg": "^8.22.0",
     "valibot": "^1.4.2"
   },
   "devDependencies": {
     "@bookeeping-agent/config": "workspace:*",
+    "@effect/vitest": "catalog:",
     "@flue/cli": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "^8.16.0",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

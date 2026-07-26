@@ -1,6 +1,6 @@
 {
   "extends": "@bookeeping-agent/config/tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "test/**/*.ts"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "noEmit": true
