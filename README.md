@@ -1,25 +1,12 @@
 # Bookkeeping Agent
 
-A fake bookkeeping app with an AI assistant for entering receipts, managing expenses/categories, and answering spending questions from the ledger. 
+A small playground for learning [Flue](https://flue.dev) and [Effect](https://effect.website). It wraps a fake bookkeeping ledger in an AI assistant that can enter receipts, manage expenses and categories, and answer spending questions.
 
-## Stack
+This is an experimental learning project, not a production bookkeeping system.
 
-- Bun workspaces
-- React + TanStack Start web app
-- Flue agent runtime
-- PostgreSQL + Drizzle
+Built with Bun workspaces, React, TanStack Start, PostgreSQL, and Drizzle.
 
-## Apps and packages
-
-```txt
-apps/web      Web app
-apps/agent    Bookkeeping assistant
-packages/db   Database schema, Effect repositories, and seed scripts
-packages/ui   Shared UI components
-packages/env  Environment validation
-```
-
-## Setup
+## Run locally
 
 Install dependencies:
 
@@ -31,7 +18,7 @@ Create an environment file `.mise.local.toml` with the required server variables
 
 ```toml
 [env]
-DATABASE_URL = "postgres://postgres:postgres@localhost:5434/bookkeeping"
+DATABASE_URL = "postgresql://postgres:password@localhost:5434/bookeeping-agent"
 CORS_ORIGIN = "http://localhost:3001"
 BETTER_AUTH_SECRET = "bookkeeping-agent-local-dev-secret-change-me"
 AGENT_MODEL = "openrouter/moonshotai/kimi-k2.6"
@@ -53,12 +40,12 @@ Start development servers:
 bun run dev
 ```
 
-Web App: <http://localhost:3001>
-Flue API: <http://localhost:3583>
+- Web app: <http://localhost:3001>
+- Flue API: <http://localhost:3583>
 
-## Seeded users
+## Demo users
 
-Signups are disabled. Run `bun run db:seed` to create the default users and their per-user category lists.
+Signups are disabled. The seed command creates these users and their category lists:
 
 | Username | Password |
 | --- | --- |
