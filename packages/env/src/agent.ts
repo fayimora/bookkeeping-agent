@@ -1,6 +1,4 @@
-import { createEnv } from '@t3-oss/env-core';
 import { Config } from 'effect';
-import { z } from 'zod';
 
 const defaultAgentModel = 'openrouter/moonshotai/kimi-k2.6';
 
@@ -14,12 +12,3 @@ export const AgentConfig = {
 		'AGENT_OBSERVABILITY'
 	).pipe(Config.withDefault('summary')),
 };
-
-export const env = createEnv({
-	emptyStringAsUndefined: true,
-	runtimeEnv: process.env,
-	server: {
-		DATABASE_URL: z.string().min(1),
-	},
-	skipValidation: !!process.env.SKIP_ENV_VALIDATION,
-});
