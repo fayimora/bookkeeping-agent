@@ -4,10 +4,6 @@
   "workspaces": {
     "": {
       "name": "bookeeping-agent",
-      "dependencies": {
-        "@bookeeping-agent/env": "workspace:*",
-        "zod": "catalog:",
-      },
       "devDependencies": {
         "@biomejs/biome": "2.5.2",
         "@bookeeping-agent/config": "workspace:*",
@@ -105,7 +101,6 @@
         "drizzle-orm": "1.0.0-rc.4",
         "effect": "catalog:",
         "pg": "^8.22.0",
-        "zod": "catalog:",
       },
       "devDependencies": {
         "@bookeeping-agent/config": "workspace:*",
@@ -135,7 +130,6 @@
       "dependencies": {
         "@t3-oss/env-core": "^0.13.1",
         "effect": "catalog:",
-        "zod": "catalog:",
       },
       "devDependencies": {
         "@bookeeping-agent/config": "workspace:*",
@@ -183,7 +177,6 @@
     "react-dom": "^19.2.6",
     "typescript": "^6",
     "vitest": "^4.1.9",
-    "zod": "^4.1.13",
   },
   "packages": {
     "@anthropic-ai/sdk": ["@anthropic-ai/sdk@0.91.1", "", { "dependencies": { "json-schema-to-ts": "^3.1.1" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" }, "optionalPeers": ["zod"], "bin": { "anthropic-ai-sdk": "bin/cli" } }, "sha512-LAmu761tSN9r66ixvmciswUj/ZC+1Q4iAfpedTfSVLeswRwnY3n2Nb6Tsk+cLPP28aLOPWeMgIuTuCcMC6W/iw=="],

@@ -1,11 +1,14 @@
-import { env } from '@bookeeping-agent/env/agent';
+import { DatabaseConfig } from '@bookeeping-agent/env/database';
 import { type PostgresQuery, postgres } from '@flue/postgres';
+import { Effect, Redacted } from 'effect';
 import pg from 'pg';
 
 const { Pool } = pg;
 
+const databaseUrl = Effect.runSync(DatabaseConfig.url);
+
 const pool = new Pool({
-	connectionString: env.DATABASE_URL,
+	connectionString: Redacted.value(databaseUrl),
 });
 
 const query: PostgresQuery = async (text, params) => {
