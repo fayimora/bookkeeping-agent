@@ -16,11 +16,14 @@ import {
 	Expense,
 	ExpenseId,
 	IsoDate,
+	isSupportedImageType,
 	ListExpensesFilters,
 	Message,
 	MessageId,
 	RenameConversationInput,
 	SendChatMessageInput,
+	SupportedImageType,
+	supportedImageTypes,
 	UpdateCategoryInput,
 	UpdateExpenseInput,
 	UserId,
@@ -121,6 +124,19 @@ describe('domain schemas', () => {
 			});
 
 			assert.strictEqual(lowercaseCurrency.currency, 'USD');
+		})
+	);
+
+	it.effect('shares one client-safe attachment MIME policy', () =>
+		Effect.sync(() => {
+			for (const mimeType of supportedImageTypes) {
+				assert.isTrue(isSupportedImageType(mimeType));
+				assert.strictEqual(
+					Schema.decodeUnknownResult(SupportedImageType)(mimeType)._tag,
+					'Success'
+				);
+			}
+			assert.isFalse(isSupportedImageType('application/pdf'));
 		})
 	);
 

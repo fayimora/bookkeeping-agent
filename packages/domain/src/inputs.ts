@@ -1,6 +1,21 @@
 import { Effect, Schema } from 'effect';
 
+import {
+	maxAttachments,
+	maxImageDataLength,
+	type SupportedImageType as SupportedImageTypeValue,
+	supportedImageTypes,
+} from './chat-attachments';
 import { Category, Conversation, Expense, Message } from './models';
+
+// biome-ignore lint/performance/noBarrelFile: Preserve the established domain input API while sharing a pure client module.
+export {
+	isSupportedImageType,
+	maxAttachments,
+	maxImageBytes,
+	maxImageDataLength,
+	supportedImageTypes,
+} from './chat-attachments';
 
 export const CreateExpenseInput = Schema.Struct({
 	amountCents: Expense.fields.amountCents,
@@ -70,19 +85,8 @@ export const AddMessageInput = Schema.Struct({
 export interface AddMessageInput
 	extends Schema.Schema.Type<typeof AddMessageInput> {}
 
-export const SupportedImageType = Schema.Literals([
-	'image/jpeg',
-	'image/png',
-	'image/gif',
-	'image/webp',
-]);
-export const supportedImageTypes = SupportedImageType.literals;
-
-export const maxImageBytes = 5 * 1024 * 1024;
-export const maxImageDataLength = Math.ceil(maxImageBytes / 3) * 4;
-export const maxAttachments = 3;
-
-export type SupportedImageType = typeof SupportedImageType.Type;
+export const SupportedImageType = Schema.Literals(supportedImageTypes);
+export type SupportedImageType = SupportedImageTypeValue;
 
 export const ChatImage = Schema.Struct({
 	data: Schema.NonEmptyString.check(Schema.isBase64()).check(
