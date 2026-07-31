@@ -8,7 +8,8 @@
     "./database": "./src/database.ts",
     "./db": "./src/db.ts",
     "./server": "./src/server.ts",
-    "./web": "./src/web.ts"
+    "./web": "./src/web.ts",
+    "./web-server": "./src/web-server.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"

@@ -1,65 +1,68 @@
-import {
-	createExpense as createExpenseRecord,
-	createExpenseSchema,
-	deleteExpense as deleteExpenseRecord,
-	getExpenseById as getExpenseRecordById,
-	listExpenses as listExpenseRecords,
-	listExpensesFiltersSchema,
-	updateExpense as updateExpenseRecord,
-	updateExpenseSchema,
-} from '@bookeeping-agent/db/queries/expenses';
+import { ExpensesRepo } from '@bookeeping-agent/db';
 import { createServerFn } from '@tanstack/react-start';
-import { z } from 'zod';
+import { Effect } from 'effect';
 
-import { ensureSession } from '../lib/auth-functions';
-
-const expenseIdInputSchema = z.object({
-	id: z.uuid(),
-});
-
-const updateExpenseInputSchema = z.object({
-	id: z.uuid(),
-	input: updateExpenseSchema,
-});
+import { CurrentUser } from './auth';
+import { runAuthenticatedEffect } from './http';
+import { ExpenseValidators } from './validators';
 
 export const listExpenses = createServerFn({ method: 'GET' })
-	.validator((data: unknown) =>
-		listExpensesFiltersSchema.optional().parse(data)
-	)
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
-
-		return await listExpenseRecords(session.user.id, data ?? {});
-	});
+	.validator(ExpenseValidators.list)
+	.handler(({ data }) =>
+		runAuthenticatedEffect(
+			Effect.gen(function* () {
+				const currentUser = yield* CurrentUser;
+				const expenses = yield* ExpensesRepo;
+				const records = yield* expenses.list(currentUser.id, data ?? {});
+				return Array.from(records);
+			})
+		)
+	);
 
 export const getExpenseById = createServerFn({ method: 'GET' })
-	.validator((data: unknown) => expenseIdInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
-
-		return await getExpenseRecordById(session.user.id, data.id);
-	});
+	.validator(ExpenseValidators.id)
+	.handler(({ data }) =>
+		runAuthenticatedEffect(
+			Effect.gen(function* () {
+				const currentUser = yield* CurrentUser;
+				const expenses = yield* ExpensesRepo;
+				return yield* expenses.getById(currentUser.id, data.id);
+			})
+		)
+	);
 
 export const createExpense = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => createExpenseSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
-
-		return await createExpenseRecord(session.user.id, data);
-	});
+	.validator(ExpenseValidators.create)
+	.handler(({ data }) =>
+		runAuthenticatedEffect(
+			Effect.gen(function* () {
+				const currentUser = yield* CurrentUser;
+				const expenses = yield* ExpensesRepo;
+				return yield* expenses.create(currentUser.id, data);
+			})
+		)
+	);
 
 export const updateExpense = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => updateExpenseInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
-
-		return await updateExpenseRecord(session.user.id, data.id, data.input);
-	});
+	.validator(ExpenseValidators.update)
+	.handler(({ data }) =>
+		runAuthenticatedEffect(
+			Effect.gen(function* () {
+				const currentUser = yield* CurrentUser;
+				const expenses = yield* ExpensesRepo;
+				return yield* expenses.update(currentUser.id, data.id, data.input);
+			})
+		)
+	);
 
 export const deleteExpense = createServerFn({ method: 'POST' })
-	.validator((data: unknown) => expenseIdInputSchema.parse(data))
-	.handler(async ({ data }) => {
-		const session = await ensureSession();
-
-		return await deleteExpenseRecord(session.user.id, data.id);
-	});
+	.validator(ExpenseValidators.id)
+	.handler(({ data }) =>
+		runAuthenticatedEffect(
+			Effect.gen(function* () {
+				const currentUser = yield* CurrentUser;
+				const expenses = yield* ExpensesRepo;
+				return yield* expenses.delete(currentUser.id, data.id);
+			})
+		)
+	);

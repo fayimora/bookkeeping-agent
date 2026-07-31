@@ -1,18 +1,9 @@
-export const supportedImageTypes = [
-	'image/jpeg',
-	'image/png',
-	'image/gif',
-	'image/webp',
-] as const;
-
-export const maxImageBytes = 5 * 1024 * 1024;
-export const maxImageDataLength = Math.ceil(maxImageBytes / 3) * 4;
-export const maxAttachments = 3;
-
-export type SupportedImageType = (typeof supportedImageTypes)[number];
-
-export function isSupportedImageType(
-	value: string
-): value is SupportedImageType {
-	return (supportedImageTypes as readonly string[]).includes(value);
-}
+// biome-ignore lint/performance/noBarrelFile: This client adapter intentionally preserves the existing web API.
+export {
+	isSupportedImageType,
+	maxAttachments,
+	maxImageBytes,
+	maxImageDataLength,
+	type SupportedImageType,
+	supportedImageTypes,
+} from '@bookeeping-agent/domain/chat-attachments';

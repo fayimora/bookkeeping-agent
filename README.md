@@ -14,7 +14,7 @@ A fake bookkeeping app with an AI assistant for entering receipts, managing expe
 ```txt
 apps/web      Web app
 apps/agent    Bookkeeping assistant
-packages/db   Database schema, queries, and seed scripts
+packages/db   Database schema, Effect repositories, and seed scripts
 packages/ui   Shared UI components
 packages/env  Environment validation
 ```
