@@ -1,6 +1,6 @@
 import { Config } from 'effect';
 
-const defaultAgentModel = 'openrouter/moonshotai/kimi-k2.6';
+const defaultAgentModel = 'openrouter/openai/gpt-5.6-luna';
 
 /** Agent-process configuration recipes for Effect application code. */
 export const AgentConfig = {

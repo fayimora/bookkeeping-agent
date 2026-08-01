@@ -21,7 +21,7 @@ Create an environment file `.mise.local.toml` with the required server variables
 DATABASE_URL = "postgresql://postgres:password@localhost:5434/bookeeping-agent"
 CORS_ORIGIN = "http://localhost:3001"
 BETTER_AUTH_SECRET = "bookkeeping-agent-local-dev-secret-change-me"
-AGENT_MODEL = "openrouter/moonshotai/kimi-k2.6"
+AGENT_MODEL = "openrouter/openai/gpt-5.6-luna"
 AGENT_OBSERVABILITY = "summary" # off, summary, or verbose
 OPENROUTER_API_KEY = "sk-or-v1-xxxxx"
 ```
