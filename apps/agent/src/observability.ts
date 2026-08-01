@@ -6,9 +6,6 @@ const skippedVerboseEvents = new Set<FlueEvent['type']>([
 	'thinking_delta',
 ]);
 const summaryEvents = new Set<FlueEvent['type']>([
-	'run_start',
-	'run_resume',
-	'run_end',
 	'agent_start',
 	'agent_end',
 	'operation_start',
@@ -24,6 +21,9 @@ const summaryEvents = new Set<FlueEvent['type']>([
 	'compaction',
 	'log',
 	'idle',
+	'submission_queued',
+	'submission_running',
+	'submission_recovery',
 	'submission_settled',
 ]);
 const summaryOmittedFields = new Set([

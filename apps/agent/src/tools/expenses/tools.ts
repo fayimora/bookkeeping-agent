@@ -39,7 +39,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'List saved expenses, optionally filtered by date range, category, or text search.',
 		input: listExpensesParameters,
 		name: 'list_expenses',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				listExpenseWorkflow(userId, input).pipe(
 					Effect.map(({ expenses }) =>
@@ -54,7 +54,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		description: 'Get one saved expense by id.',
 		input: getExpenseParameters,
 		name: 'get_expense',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId =
@@ -77,7 +77,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'Calculate spending totals from saved expenses, optionally filtered by date range, category, or text search.',
 		input: listExpensesParameters,
 		name: 'get_spending_total',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const { expenses, filters } = yield* listExpenseWorkflow(
@@ -111,7 +111,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'Create a saved expense after the vendor, date, amount, currency, and category are clear. Amount must be in minor units, such as pence or cents.',
 		input: createExpenseParameters,
 		name: 'create_expense',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId =
@@ -137,7 +137,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			'Update a saved expense by id after the requested field changes are clear. Amount must be in minor units, such as pence or cents.',
 		input: updateExpenseParameters,
 		name: 'update_expense',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId =
@@ -162,7 +162,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		description: 'Delete a saved expense by id only after user confirmation.',
 		input: deleteExpenseParameters,
 		name: 'delete_expense',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId =

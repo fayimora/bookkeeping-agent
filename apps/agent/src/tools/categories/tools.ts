@@ -87,7 +87,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		description: 'Get one expense category by id or slug.',
 		input: getCategoryParameters,
 		name: 'get_category',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId = yield* decodeUserId(userId);
@@ -103,7 +103,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			'Create a new expense category after the category name is clear. If slug is omitted, it is generated from the name.',
 		input: createCategoryParameters,
 		name: 'create_category',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId = yield* decodeUserId(userId);
@@ -126,7 +126,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			'Update an expense category by id or slug after the requested name or slug change is clear.',
 		input: updateCategoryParameters,
 		name: 'update_category',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId = yield* decodeUserId(userId);
@@ -160,7 +160,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 			'Delete an expense category by id or slug only after user confirmation. Existing expenses in this category become uncategorized.',
 		input: deleteCategoryParameters,
 		name: 'delete_category',
-		run: ({ input, signal }) =>
+		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
 					const parsedUserId = yield* decodeUserId(userId);

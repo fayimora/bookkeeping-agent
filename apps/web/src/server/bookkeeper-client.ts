@@ -1,8 +1,8 @@
 import { WebServerConfig } from '@bookeeping-agent/env/web-server';
 import {
-	type AgentPromptImage,
 	type AgentPromptOptions,
 	createFlueClient,
+	type DeliveredAttachment,
 } from '@flue/sdk';
 import { Context, Effect, Layer, Option, Redacted, Schema } from 'effect';
 
@@ -28,7 +28,7 @@ export interface BookkeeperResponse
 	extends Schema.Schema.Type<typeof BookkeeperResponse> {}
 
 export interface BookkeeperPrompt {
-	readonly images?: readonly AgentPromptImage[];
+	readonly images?: readonly DeliveredAttachment[];
 	readonly message: string;
 }
 
@@ -47,27 +47,42 @@ export class BookkeeperClient extends Context.Service<
 	BookkeeperClientService
 >()('@bookeeping-agent/web/BookkeeperClient') {}
 
+const trailingSlashes = /\/+$/;
+
+function getConversationUrl(baseUrl: URL, instanceId: string) {
+	const url = new URL(baseUrl);
+	const basePath = url.pathname.replace(trailingSlashes, '');
+	url.pathname = `${basePath}/agents/bookkeeper/${encodeURIComponent(instanceId)}`;
+	url.search = '';
+	url.hash = '';
+	return url.toString();
+}
+
 export const BookkeeperClientLive = Layer.effect(
 	BookkeeperClient,
 	Effect.gen(function* () {
 		const baseUrl = yield* WebServerConfig.flueBaseUrl;
 		const token = yield* WebServerConfig.flueToken;
-		const client = createFlueClient({
-			baseUrl: baseUrl.toString(),
-			token: Option.match(token, {
-				onNone: () => undefined,
-				onSome: Redacted.value,
-			}),
+		const bearerToken = Option.match(token, {
+			onNone: () => undefined,
+			onSome: Redacted.value,
 		});
 
 		const prompt = Effect.fn('BookkeeperClient.prompt')(function* (
 			instanceId: string,
 			input: BookkeeperPrompt
 		) {
+			const client = createFlueClient({
+				token: bearerToken,
+				url: getConversationUrl(baseUrl, instanceId),
+			});
 			const options: AgentPromptOptions = {
-				images:
-					input.images === undefined ? undefined : Array.from(input.images),
-				message: input.message,
+				message: {
+					attachments:
+						input.images === undefined ? undefined : Array.from(input.images),
+					body: input.message,
+					kind: 'user',
+				},
 			};
 			const response = yield* Effect.tryPromise({
 				catch: (cause) =>
@@ -75,15 +90,14 @@ export const BookkeeperClientLive = Layer.effect(
 						cause,
 						operation: 'BookkeeperClient.prompt',
 					}),
-				try: (signal) =>
-					client.agents.prompt('bookkeeper', instanceId, {
-						...options,
-						signal,
-					}),
+				try: async (signal) => {
+					const admission = await client.send({ ...options, signal });
+					return client.read(admission, { signal });
+				},
 			});
 
 			return yield* Schema.decodeUnknownEffect(BookkeeperResponse)(
-				response.result
+				response
 			).pipe(Effect.mapError((cause) => AgentResponseError.make({ cause })));
 		});
 
