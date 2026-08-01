@@ -14,6 +14,17 @@ services:
       retries: 5
     restart: unless-stopped
 
+  reset-db:
+    build:
+      context: .
+      target: db-init
+    environment:
+      DATABASE_URL: postgresql://bookkeeping:${POSTGRES_PASSWORD}@postgres:5432/bookkeeping
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   agent:
     build:
       context: .
@@ -29,6 +40,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      reset-db:
+        condition: service_completed_successfully
     expose:
       - "3583"
     restart: unless-stopped

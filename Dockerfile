@@ -21,6 +21,12 @@ RUN bun install --frozen-lockfile
 COPY . .
 RUN bun run build
 
+FROM builder AS db-init
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends postgresql-client \
+	&& rm -rf /var/lib/apt/lists/*
+CMD ["sh", "-ec", "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;' && bun run --cwd packages/db db:migrate && bun run --cwd packages/db db:seed"]
+
 FROM oven/bun:1.3.14 AS web
 WORKDIR /app
 

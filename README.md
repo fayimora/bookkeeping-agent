@@ -1,6 +1,6 @@
 # Bookkeeping Agent
 
-A small playground for learning [Flue](https://flue.dev) and [Effect](https://effect.website). It wraps a fake bookkeeping ledger in an AI assistant that can enter receipts, manage expenses and categories, and answer spending questions.
+A small playground for learning [Flue](https://flueframework.com) and [Effect](https://effect.website). It wraps a fake bookkeeping ledger in an AI assistant that can enter receipts, manage expenses and categories, and answer spending questions.
 
 This is an experimental learning project, not a production bookkeeping system.
 
