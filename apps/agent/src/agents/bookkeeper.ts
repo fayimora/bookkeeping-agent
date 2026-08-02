@@ -7,7 +7,6 @@ import { Effect } from 'effect';
 import { bookkeeperInstructions } from '../instructions/bookkeeper';
 import { registerAgentObservability } from '../observability';
 import receiptEntry from '../skills/receipt-entry/SKILL.md';
-import spendAnalysis from '../skills/spend-analysis/SKILL.md';
 import { bookkeeperTools } from '../tools/bookkeeper-tools';
 
 const agentConfig = Effect.runSync(
@@ -27,7 +26,6 @@ export function Bookkeeper({ id: instanceId }: AgentProps) {
 	const userId = instanceId.split('::')[0] ?? instanceId;
 
 	useModel(agentConfig.model);
-	useSkill(spendAnalysis);
 	useSkill(receiptEntry);
 	for (const tool of bookkeeperTools(userId)) {
 		// biome-ignore lint/correctness/useHookAtTopLevel: Flue resource hooks explicitly support deterministic loops.
