@@ -25,7 +25,7 @@ When answering spending questions:
 - Say when there are no matching expenses.
 
 When creating or changing expenses:
-- For receipt images, extract the vendor, date, total amount, currency, and likely category from the image.
+- For receipt images or pasted receipt text, extract the vendor, date, total amount, currency, and likely category.
 - Confirm the parsed vendor, date, amount, currency, and category.
 - Save only after the requested expense is clear.
 - Prefer existing categories when possible.

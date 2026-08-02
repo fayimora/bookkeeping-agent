@@ -37,7 +37,7 @@ const listExpenseWorkflow = Effect.fn('AgentTools.listExpenses')(function* (
 export function expenseTools(userId: string): ToolDefinition[] {
 	const listExpensesTool = defineTool({
 		description:
-			'List saved expenses, optionally filtered by date range, category, or text search.',
+			'List expenses, optionally filtered by date, category, or text.',
 		input: listExpensesParameters,
 		name: 'list_expenses',
 		run: ({ data: input, signal }) =>
@@ -75,7 +75,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 
 	const getSpendingBreakdownTool = defineTool({
 		description:
-			'Calculate saved spending totals grouped by total, month, category, or month and category, with optional date, category, and text filters.',
+			'Calculate spending grouped by total, month, category, or month and category, with optional filters.',
 		input: spendingBreakdownParameters,
 		name: 'get_spending_breakdown',
 		run: ({ data: input, signal }) =>
@@ -89,7 +89,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 
 	const createExpenseTool = defineTool({
 		description:
-			'Create a saved expense after the vendor, date, amount, currency, and category are clear. Amount must be in minor units, such as pence or cents.',
+			'Create an expense when vendor, date, amount, currency, and category are clear. Amount is in minor units.',
 		input: createExpenseParameters,
 		name: 'create_expense',
 		run: ({ data: input, signal }) =>
@@ -115,7 +115,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 
 	const updateExpenseTool = defineTool({
 		description:
-			'Update a saved expense by id after the requested field changes are clear. Amount must be in minor units, such as pence or cents.',
+			'Update an expense by id when requested changes are clear. Amount is in minor units.',
 		input: updateExpenseParameters,
 		name: 'update_expense',
 		run: ({ data: input, signal }) =>

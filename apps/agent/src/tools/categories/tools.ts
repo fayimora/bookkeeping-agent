@@ -66,7 +66,7 @@ export const resolveCategory = Effect.fn('AgentTools.resolveCategory')(
 export function categoryTools(userId: string): ToolDefinition[] {
 	const listCategoriesTool = defineTool({
 		description:
-			'List the available expense categories. Use this before creating or updating an expense when you need a valid category.',
+			'List expense categories. Use before creating or updating an expense when a valid category is needed.',
 		input: listCategoriesParameters,
 		name: 'list_categories',
 		run: ({ signal }) =>
@@ -84,7 +84,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 	});
 
 	const getCategoryTool = defineTool({
-		description: 'Get one expense category by id or slug.',
+		description: 'Get one category by id or slug.',
 		input: getCategoryParameters,
 		name: 'get_category',
 		run: ({ data: input, signal }) =>
@@ -100,7 +100,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 
 	const createCategoryTool = defineTool({
 		description:
-			'Create a new expense category after the category name is clear. If slug is omitted, it is generated from the name.',
+			'Create a category after its name is clear. Generate the slug when omitted.',
 		input: createCategoryParameters,
 		name: 'create_category',
 		run: ({ data: input, signal }) =>
@@ -123,7 +123,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 
 	const updateCategoryTool = defineTool({
 		description:
-			'Update an expense category by id or slug after the requested name or slug change is clear.',
+			'Update a category by id or slug after the requested change is clear.',
 		input: updateCategoryParameters,
 		name: 'update_category',
 		run: ({ data: input, signal }) =>
@@ -157,7 +157,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 
 	const deleteCategoryTool = defineTool({
 		description:
-			'Delete an expense category by id or slug only after user confirmation. Existing expenses in this category become uncategorized.',
+			'Delete a category by id or slug only after confirmation. Existing expenses become uncategorized.',
 		input: deleteCategoryParameters,
 		name: 'delete_category',
 		run: ({ data: input, signal }) =>

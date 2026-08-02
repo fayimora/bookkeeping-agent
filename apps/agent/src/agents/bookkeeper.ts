@@ -1,12 +1,11 @@
 'use agent';
 
 import { AgentConfig } from '@bookeeping-agent/env/agent';
-import { type AgentProps, useModel, useSkill, useTool } from '@flue/runtime';
+import { type AgentProps, useModel, useTool } from '@flue/runtime';
 import { Effect } from 'effect';
 
 import { bookkeeperInstructions } from '../instructions/bookkeeper';
 import { registerAgentObservability } from '../observability';
-import receiptEntry from '../skills/receipt-entry/SKILL.md';
 import { bookkeeperTools } from '../tools/bookkeeper-tools';
 
 const agentConfig = Effect.runSync(
@@ -26,7 +25,6 @@ export function Bookkeeper({ id: instanceId }: AgentProps) {
 	const userId = instanceId.split('::')[0] ?? instanceId;
 
 	useModel(agentConfig.model);
-	useSkill(receiptEntry);
 	for (const tool of bookkeeperTools(userId)) {
 		// biome-ignore lint/correctness/useHookAtTopLevel: Flue resource hooks explicitly support deterministic loops.
 		useTool(tool);
