@@ -13,11 +13,12 @@ import {
 	deleteExpenseParameters,
 	getExpenseParameters,
 	listExpensesParameters,
+	spendingBreakdownParameters,
 	updateExpenseParameters,
 } from './schemas';
+import { spendingBreakdownWorkflow } from './spending';
 import {
 	buildUpdateExpenseValues,
-	formatMoney,
 	resolveExpenseCategoryId,
 	resolveExpenseFilters,
 } from './utils';
@@ -72,36 +73,16 @@ export function expenseTools(userId: string): ToolDefinition[] {
 			),
 	});
 
-	const getSpendingTotalTool = defineTool({
+	const getSpendingBreakdownTool = defineTool({
 		description:
-			'Calculate spending totals from saved expenses, optionally filtered by date range, category, or text search.',
-		input: listExpensesParameters,
-		name: 'get_spending_total',
+			'Calculate saved spending totals grouped by total, month, category, or month and category, with optional date, category, and text filters.',
+		input: spendingBreakdownParameters,
+		name: 'get_spending_breakdown',
 		run: ({ data: input, signal }) =>
 			runToolEffect(
-				Effect.gen(function* () {
-					const { expenses, filters } = yield* listExpenseWorkflow(
-						userId,
-						input
-					);
-					const totalsByCurrency = expenses.reduce<Record<string, number>>(
-						(accumulator, expense) => {
-							accumulator[expense.currency] =
-								(accumulator[expense.currency] ?? 0) + expense.amountCents;
-							return accumulator;
-						},
-						{}
-					);
-					const totals = Object.entries(totalsByCurrency).map(
-						([currency, amountCents]) => ({
-							amountCents,
-							currency,
-							formatted: formatMoney(amountCents, currency),
-						})
-					);
-
-					return JSON.stringify({ count: expenses.length, filters, totals });
-				}),
+				spendingBreakdownWorkflow(userId, input).pipe(
+					Effect.map((output) => ({ output }))
+				),
 				signal
 			),
 	});
@@ -181,7 +162,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 	return [
 		listExpensesTool,
 		getExpenseTool,
-		getSpendingTotalTool,
+		getSpendingBreakdownTool,
 		createExpenseTool,
 		updateExpenseTool,
 		deleteExpenseTool,

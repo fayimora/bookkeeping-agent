@@ -9,6 +9,7 @@ import {
 	number,
 	object,
 	optional,
+	picklist,
 	pipe,
 	regex,
 	string,
@@ -51,6 +52,48 @@ export const listExpensesParameters = object({
 });
 
 export type ListExpensesToolInput = InferOutput<typeof listExpensesParameters>;
+
+export const spendingBreakdownParameters = object({
+	categoryId: optional(
+		pipe(string(), description('Category UUID to filter by.'))
+	),
+	categorySlug: optional(
+		pipe(
+			string(),
+			description('Category slug to filter by, such as food or travel.'),
+			minLength(1)
+		)
+	),
+	from: optional(
+		pipe(
+			string(),
+			description('Start date in YYYY-MM-DD format.'),
+			regex(datePattern)
+		)
+	),
+	groupBy: pipe(
+		picklist(['total', 'month', 'category', 'month_category']),
+		description('How to group spending totals.')
+	),
+	search: optional(
+		pipe(
+			string(),
+			description('Search text for vendor or description.'),
+			minLength(1)
+		)
+	),
+	to: optional(
+		pipe(
+			string(),
+			description('End date in YYYY-MM-DD format.'),
+			regex(datePattern)
+		)
+	),
+});
+
+export type SpendingBreakdownToolInput = InferOutput<
+	typeof spendingBreakdownParameters
+>;
 
 const expenseIdParameter = pipe(
 	string(),
