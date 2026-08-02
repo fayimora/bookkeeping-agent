@@ -7,20 +7,20 @@ import {
 import { defineTool, type ToolDefinition } from '@flue/runtime';
 import { Effect, Schema } from 'effect';
 
-import { retryTransientRead, runToolEffect } from '../shared.ts';
+import { retryTransientRead, runToolEffect } from '../shared';
 import {
 	createExpenseParameters,
 	deleteExpenseParameters,
 	getExpenseParameters,
 	listExpensesParameters,
 	updateExpenseParameters,
-} from './schemas.ts';
+} from './schemas';
 import {
 	buildUpdateExpenseValues,
 	formatMoney,
 	resolveExpenseCategoryId,
 	resolveExpenseFilters,
-} from './utils.ts';
+} from './utils';
 
 const listExpenseWorkflow = Effect.fn('AgentTools.listExpenses')(function* (
 	userIdValue: string,

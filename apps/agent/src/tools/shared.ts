@@ -14,7 +14,7 @@ import type {
 import { Effect, Schedule, type Schema } from 'effect';
 import { isSqlError } from 'effect/unstable/sql/SqlError';
 
-import { agentRuntime } from '../runtime.ts';
+import { agentRuntime } from '../runtime';
 
 export type ToolFailure =
 	| CategoryNotFound

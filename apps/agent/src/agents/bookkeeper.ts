@@ -4,11 +4,11 @@ import { AgentConfig } from '@bookeeping-agent/env/agent';
 import { type AgentProps, useModel, useSkill, useTool } from '@flue/runtime';
 import { Effect } from 'effect';
 
-import { bookkeeperInstructions } from '../instructions/bookkeeper.ts';
-import { registerAgentObservability } from '../observability.ts';
+import { bookkeeperInstructions } from '../instructions/bookkeeper';
+import { registerAgentObservability } from '../observability';
 import receiptEntry from '../skills/receipt-entry/SKILL.md';
 import spendAnalysis from '../skills/spend-analysis/SKILL.md';
-import { bookkeeperTools } from '../tools/bookkeeper-tools.ts';
+import { bookkeeperTools } from '../tools/bookkeeper-tools';
 
 const agentConfig = Effect.runSync(
 	Effect.all({

@@ -11,12 +11,12 @@ import {
 } from '@bookeeping-agent/domain';
 import { Effect, Schema } from 'effect';
 
-import { retryTransientRead } from '../shared.ts';
+import { retryTransientRead } from '../shared';
 import type {
 	CreateExpenseToolInput,
 	ListExpensesToolInput,
 	UpdateExpenseToolInput,
-} from './schemas.ts';
+} from './schemas';
 
 interface RawUpdateExpenseValues {
 	amountCents?: number;

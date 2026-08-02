@@ -3,8 +3,8 @@ import { UserId } from '@bookeeping-agent/domain';
 import { assert, describe, it as effectIt, layer } from '@effect/vitest';
 import { Effect, Layer, Schema } from 'effect';
 
-import { categorySlugForCreate } from '../src/tools/categories/tools.ts';
-import { buildUpdateExpenseValues } from '../src/tools/expenses/utils.ts';
+import { categorySlugForCreate } from '../src/tools/categories/tools';
+import { buildUpdateExpenseValues } from '../src/tools/expenses/utils';
 
 const CategoriesTestLive = Layer.succeed(
 	CategoriesRepo,

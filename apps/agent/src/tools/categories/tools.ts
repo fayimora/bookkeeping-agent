@@ -11,14 +11,14 @@ import {
 import { defineTool, type ToolDefinition } from '@flue/runtime';
 import { Effect, Schema } from 'effect';
 
-import { retryTransientRead, runToolEffect } from '../shared.ts';
+import { retryTransientRead, runToolEffect } from '../shared';
 import {
 	createCategoryParameters,
 	deleteCategoryParameters,
 	getCategoryParameters,
 	listCategoriesParameters,
 	updateCategoryParameters,
-} from './schemas.ts';
+} from './schemas';
 
 interface CategoryLookup {
 	readonly id?: string;

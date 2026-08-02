@@ -1,5 +1,5 @@
-import { categoryTools } from './categories/tools.ts';
-import { expenseTools } from './expenses/tools.ts';
+import { categoryTools } from './categories/tools';
+import { expenseTools } from './expenses/tools';
 
 export function bookkeeperTools(userId: string) {
 	return [...categoryTools(userId), ...expenseTools(userId)];
