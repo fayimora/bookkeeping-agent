@@ -3,6 +3,7 @@ import { Layer, Logger, ManagedRuntime } from 'effect';
 
 import { BetterAuthLive } from './auth';
 import { BookkeeperClientLive } from './bookkeeper-client';
+import { WebTelemetryLive } from './telemetry';
 
 const RepositoryServicesLive = RepositoriesLive.pipe(
 	Layer.provide(PgClientLive)
@@ -13,8 +14,10 @@ const JsonLoggerLive = Logger.layer([Logger.consoleJson]);
 export const WebAppLayer = Layer.mergeAll(
 	RepositoryServicesLive,
 	BetterAuthLive,
-	BookkeeperClientLive
-).pipe(Layer.provide(JsonLoggerLive));
+	BookkeeperClientLive,
+	JsonLoggerLive,
+	WebTelemetryLive
+);
 
 /** Process-wide runtime at the TanStack Promise boundary. */
 export const webRuntime = ManagedRuntime.make(WebAppLayer);

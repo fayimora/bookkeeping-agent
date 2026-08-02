@@ -1,4 +1,5 @@
 import { WebServerConfig } from '@bookeeping-agent/env/web-server';
+import { currentTraceHeaders } from '@bookeeping-agent/telemetry/propagation';
 import {
 	type AgentPromptOptions,
 	createFlueClient,
@@ -72,7 +73,9 @@ export const BookkeeperClientLive = Layer.effect(
 			instanceId: string,
 			input: BookkeeperPrompt
 		) {
+			const traceHeaders = yield* currentTraceHeaders.pipe(Effect.orDie);
 			const client = createFlueClient({
+				headers: traceHeaders,
 				token: bearerToken,
 				url: getConversationUrl(baseUrl, instanceId),
 			});

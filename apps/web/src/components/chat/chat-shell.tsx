@@ -11,6 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import {
 	BotIcon,
+	CopyIcon,
 	PaperclipIcon,
 	SendIcon,
 	UserIcon,
@@ -323,6 +324,15 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 		(message.trim().length > 0 || attachments.length > 0) &&
 		!chatMutation.isPending;
 
+	const handleCopyDebugId = async () => {
+		try {
+			await navigator.clipboard.writeText(conversationId);
+			toast.success('Debug ID copied');
+		} catch {
+			toast.error('Could not copy the Debug ID');
+		}
+	};
+
 	const handleFileChange = async (filesToAttach: FileList | null) => {
 		const selectedFiles = Array.from(filesToAttach ?? []);
 
@@ -374,10 +384,26 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 
 				<Card className="min-h-0 flex-1">
 					<CardHeader>
-						<CardTitle>Bookkeeper assistant</CardTitle>
-						<CardDescription>
-							Ask questions or add a text expense.
-						</CardDescription>
+						<div className="flex flex-wrap items-start justify-between gap-3">
+							<div>
+								<CardTitle>Bookkeeper assistant</CardTitle>
+								<CardDescription>
+									Ask questions or add a text expense.
+								</CardDescription>
+							</div>
+							<Button
+								onClick={handleCopyDebugId}
+								size="xs"
+								type="button"
+								variant="outline"
+							>
+								<CopyIcon />
+								Copy Debug ID
+							</Button>
+						</div>
+						<p className="break-all font-mono text-muted-foreground text-xs">
+							Debug ID: {conversationId}
+						</p>
 					</CardHeader>
 					<CardContent className="flex min-h-0 flex-1 flex-col gap-5">
 						<div

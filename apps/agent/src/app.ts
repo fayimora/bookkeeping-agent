@@ -1,7 +1,8 @@
 import { createAgentRouter } from '@flue/runtime/routing';
 import { Hono } from 'hono';
 
-import { Bookkeeper } from './agents/bookkeeper.ts';
+import './telemetry';
+import { Bookkeeper } from './agents/bookkeeper';
 
 const app = new Hono();
 

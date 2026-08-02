@@ -11,4 +11,7 @@ export const AgentConfig = {
 		['off', 'summary', 'verbose'],
 		'AGENT_OBSERVABILITY'
 	).pipe(Config.withDefault('summary')),
+	telemetryIncludeContent: Config.boolean(
+		'AGENT_TELEMETRY_INCLUDE_CONTENT'
+	).pipe(Config.withDefault(false)),
 };

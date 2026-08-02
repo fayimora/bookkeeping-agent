@@ -88,6 +88,8 @@ export function renderMarkdownToSafeHtml(markdown: string) {
 export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 	input: SendChatMessageInput
 ) {
+	yield* Effect.annotateCurrentSpan('chat.id', input.conversationId);
+
 	const currentUser = yield* CurrentUser;
 	const conversations = yield* ConversationsRepo;
 	const bookkeeper = yield* BookkeeperClient;

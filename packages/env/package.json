@@ -6,6 +6,7 @@
   "exports": {
     "./agent": "./src/agent.ts",
     "./database": "./src/database.ts",
+    "./telemetry": "./src/telemetry.ts",
     "./web": "./src/web.ts",
     "./web-server": "./src/web-server.ts"
   },
