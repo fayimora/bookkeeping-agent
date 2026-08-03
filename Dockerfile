@@ -14,6 +14,7 @@ COPY packages/config/package.json packages/config/package.json
 COPY packages/db/package.json packages/db/package.json
 COPY packages/domain/package.json packages/domain/package.json
 COPY packages/env/package.json packages/env/package.json
+COPY packages/telemetry/package.json packages/telemetry/package.json
 COPY packages/ui/package.json packages/ui/package.json
 
 RUN bun install --frozen-lockfile
