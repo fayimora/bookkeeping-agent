@@ -1,4 +1,5 @@
 import { hashPassword } from 'better-auth/crypto';
+import { createLocalAccountIssuer } from 'better-auth/db';
 import { eq, sql } from 'drizzle-orm';
 import { Effect, Layer, Logger, Schema } from 'effect';
 
@@ -42,6 +43,8 @@ const defaultCategories = [
 	{ name: 'Other', slug: 'other' },
 ];
 
+const credentialIssuer = createLocalAccountIssuer('credential');
+
 const seedDatabase = Effect.fn('Database.seed')(function* () {
 	const db = yield* Database;
 
@@ -75,6 +78,7 @@ const seedDatabase = Effect.fn('Database.seed')(function* () {
 			.values({
 				accountId: user.id,
 				id: `seed-account-${user.id}`,
+				issuer: credentialIssuer,
 				password,
 				providerId: 'credential',
 				userId: user.id,
@@ -82,6 +86,7 @@ const seedDatabase = Effect.fn('Database.seed')(function* () {
 			.onConflictDoUpdate({
 				set: {
 					accountId: user.id,
+					issuer: credentialIssuer,
 					password,
 					providerId: 'credential',
 					updatedAt: new Date(),

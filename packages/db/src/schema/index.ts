@@ -62,6 +62,9 @@ export const accounts = pgTable(
 			.notNull(),
 		id: text('id').primaryKey(),
 		idToken: text('id_token'),
+		// better-auth >= 1.7: identifies who issued the account identity
+		// (e.g. 'local:credential' for email/password).
+		issuer: text('issuer').notNull(),
 		password: text('password'),
 		providerId: text('provider_id').notNull(),
 		refreshToken: text('refresh_token'),
@@ -76,21 +79,31 @@ export const accounts = pgTable(
 			.notNull()
 			.references(() => users.id, { onDelete: 'cascade' }),
 	},
-	(table) => [index('accounts_user_id_idx').on(table.userId)]
+	(table) => [
+		index('accounts_user_id_idx').on(table.userId),
+		uniqueIndex('accounts_issuer_account_id_unique').on(
+			table.issuer,
+			table.accountId
+		),
+	]
 );
 
-export const verifications = pgTable('verifications', {
-	createdAt: timestamp('created_at', { withTimezone: true }).$defaultFn(
-		() => new Date()
-	),
-	expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-	id: text('id').primaryKey(),
-	identifier: text('identifier').notNull(),
-	updatedAt: timestamp('updated_at', { withTimezone: true }).$defaultFn(
-		() => new Date()
-	),
-	value: text('value').notNull(),
-});
+export const verifications = pgTable(
+	'verifications',
+	{
+		createdAt: timestamp('created_at', { withTimezone: true })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+		id: text('id').primaryKey(),
+		identifier: text('identifier').notNull(),
+		updatedAt: timestamp('updated_at', { withTimezone: true })
+			.$defaultFn(() => new Date())
+			.notNull(),
+		value: text('value').notNull(),
+	},
+	(table) => [index('verifications_identifier_idx').on(table.identifier)]
+);
 
 export const categories = pgTable(
 	'categories',
