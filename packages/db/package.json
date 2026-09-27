@@ -1,6 +1,13 @@
 {
   "name": "@bookeeping-agent/db",
   "type": "module",
+  "imports": {
+    "#db/database": "./src/database.ts",
+    "#db/errors": "./src/errors.ts",
+    "#db/repositories": "./src/repositories/index.ts",
+    "#db/runtime": "./src/runtime.ts",
+    "#db/schema": "./src/schema/index.ts"
+  },
   "exports": {
     ".": {
       "default": "./src/index.ts"
@@ -9,40 +16,33 @@
       "default": "./src/*.ts"
     }
   },
-  "imports": {
-    "#db/database": "./src/database.ts",
-    "#db/errors": "./src/errors.ts",
-    "#db/repositories": "./src/repositories/index.ts",
-    "#db/runtime": "./src/runtime.ts",
-    "#db/schema": "./src/schema/index.ts"
-  },
   "scripts": {
     "check-types": "tsc --noEmit",
-    "test": "vitest run",
-    "db:push": "drizzle-kit push",
+    "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
     "db:seed": "bun src/seed.ts",
     "db:start": "docker compose up -d",
-    "db:watch": "docker compose up",
     "db:stop": "docker compose stop",
-    "db:down": "docker compose down"
+    "db:studio": "drizzle-kit studio",
+    "db:watch": "docker compose up",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@better-auth/drizzle-adapter": "^1.6.23",
-    "@bookeeping-agent/env": "workspace:*",
+    "@better-auth/drizzle-adapter": "^1.7.2",
     "@bookeeping-agent/domain": "workspace:*",
+    "@bookeeping-agent/env": "workspace:*",
     "@effect/sql-pg": "4.0.0-beta.97",
-    "better-auth": "^1.6.23",
+    "better-auth": "^1.7.2",
     "drizzle-orm": "1.0.0-rc.4",
     "effect": "catalog:",
-    "pg": "^8.22.0"
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@bookeeping-agent/config": "workspace:*",
     "@effect/vitest": "catalog:",
-    "@types/pg": "^8.16.0",
+    "@types/pg": "^8.23.1",
     "drizzle-kit": "1.0.0-rc.4",
     "typescript": "catalog:",
     "vitest": "catalog:"
