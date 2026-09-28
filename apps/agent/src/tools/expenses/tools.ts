@@ -2,6 +2,7 @@ import { ExpensesRepo } from '@bookeeping-agent/db';
 import {
 	CreateExpenseInput,
 	ExpenseId,
+	ExpensePage,
 	type UserId,
 } from '@bookeeping-agent/domain';
 import { defineTool, type ToolDefinition } from '@flue/runtime';
@@ -10,8 +11,10 @@ import { Effect, Schema } from 'effect';
 import { retryTransientRead, runToolEffect } from '../shared';
 import {
 	createExpenseParameters,
+	defaultExpensePageSize,
 	deleteExpenseParameters,
 	getExpenseParameters,
+	type ListExpensesToolInput,
 	listExpensesParameters,
 	spendingBreakdownParameters,
 	updateExpenseParameters,
@@ -23,28 +26,35 @@ import {
 	resolveExpenseFilters,
 } from './utils';
 
-const listExpenseWorkflow = Effect.fn('AgentTools.listExpenses')(function* (
-	userId: UserId,
-	input: Parameters<typeof resolveExpenseFilters>[1]
-) {
-	const filters = yield* resolveExpenseFilters(userId, input);
-	const expenses = yield* ExpensesRepo;
-	return yield* retryTransientRead(expenses.list(userId, filters));
-});
+export const listExpenseWorkflow = Effect.fn('AgentTools.listExpenses')(
+	function* (userId: UserId, input: ListExpensesToolInput) {
+		const filters = yield* resolveExpenseFilters(userId, input);
+		const page = yield* Schema.decodeUnknownEffect(ExpensePage)({
+			limit: input.limit ?? defaultExpensePageSize,
+			offset: input.offset ?? 0,
+		});
+		const expensesRepo = yield* ExpensesRepo;
+		const { expenses, hasMore } = yield* retryTransientRead(
+			expensesRepo.listPage(userId, filters, page)
+		);
+
+		return {
+			count: expenses.length,
+			expenses,
+			hasMore,
+			...(hasMore && { nextOffset: page.offset + expenses.length }),
+		};
+	}
+);
 
 export function expenseTools(userId: UserId): ToolDefinition[] {
 	const listExpensesTool = defineTool({
-		description:
-			'List expenses, optionally filtered by date, category, or text.',
+		description: `List individual expenses (newest first, ${defaultExpensePageSize} per page by default), filtered by date, category, or text. Narrow the filters or page with offset when hasMore is true. Use get_spending_breakdown for totals.`,
 		input: listExpensesParameters,
 		name: 'list_expenses',
 		run: ({ data: input, signal }) =>
 			runToolEffect(
-				listExpenseWorkflow(userId, input).pipe(
-					Effect.map((expenses) =>
-						JSON.stringify({ count: expenses.length, expenses })
-					)
-				),
+				listExpenseWorkflow(userId, input).pipe(Effect.map(JSON.stringify)),
 				signal
 			),
 	});

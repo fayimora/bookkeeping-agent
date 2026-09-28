@@ -4,6 +4,7 @@ import {
 	CreateConversationInput,
 	CreateExpenseInput,
 	ExpenseId,
+	ExpensePage,
 	ListExpensesFilters,
 	RenameConversationInput,
 	UpdateExpenseInput,
@@ -103,6 +104,60 @@ describe('Effect repositories', () => {
 					expenseRepo.getById(userId, created.id)
 				);
 				assert.strictEqual(error._tag, 'ExpenseNotFound');
+			})
+		);
+
+		it.effect('pages expenses newest first with hasMore', () =>
+			Effect.gen(function* () {
+				const userId = yield* makeUser('expense-page');
+				const expenseRepo = yield* ExpensesRepo;
+				for (const date of ['2026-07-01', '2026-07-02', '2026-07-03']) {
+					const input = yield* Schema.decodeUnknownEffect(CreateExpenseInput)({
+						amountCents: 100,
+						categoryId: null,
+						currency: 'GBP',
+						date,
+						vendor: `Vendor ${date}`,
+					});
+					yield* expenseRepo.create(userId, input);
+				}
+				const filters = yield* Schema.decodeUnknownEffect(ListExpensesFilters)(
+					{}
+				);
+				const decodePage = Schema.decodeUnknownEffect(ExpensePage);
+
+				const first = yield* expenseRepo.listPage(
+					userId,
+					filters,
+					yield* decodePage({ limit: 2, offset: 0 })
+				);
+				assert.deepStrictEqual(
+					first.expenses.map((expense) => expense.date),
+					['2026-07-03', '2026-07-02']
+				);
+				assert.isTrue(first.hasMore);
+
+				const last = yield* expenseRepo.listPage(
+					userId,
+					filters,
+					yield* decodePage({ limit: 2, offset: 2 })
+				);
+				assert.deepStrictEqual(
+					last.expenses.map((expense) => expense.date),
+					['2026-07-01']
+				);
+				assert.isFalse(last.hasMore);
+
+				const exact = yield* expenseRepo.listPage(
+					userId,
+					filters,
+					yield* decodePage({ limit: 3, offset: 0 })
+				);
+				assert.strictEqual(exact.expenses.length, 3);
+				assert.isFalse(exact.hasMore);
+
+				const all = yield* expenseRepo.list(userId, filters);
+				assert.strictEqual(all.length, 3);
 			})
 		);
 

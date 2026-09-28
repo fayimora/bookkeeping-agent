@@ -50,6 +50,18 @@ export const ListExpensesFilters = Schema.Struct({
 export interface ListExpensesFilters
 	extends Schema.Schema.Type<typeof ListExpensesFilters> {}
 
+export const maxExpensePageSize = 200;
+
+// Separate from ListExpensesFilters so callers that need every matching row
+// (spending aggregates, the web ledger) cannot be truncated by accident.
+export const ExpensePage = Schema.Struct({
+	limit: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).check(
+		Schema.isLessThanOrEqualTo(maxExpensePageSize)
+	),
+	offset: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+export interface ExpensePage extends Schema.Schema.Type<typeof ExpensePage> {}
+
 export const CreateCategoryInput = Schema.Struct({
 	name: Category.fields.name,
 	slug: Category.fields.slug,

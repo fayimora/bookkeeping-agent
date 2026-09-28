@@ -6,6 +6,7 @@ import {
 	type Expense,
 	type ExpenseId,
 	ExpenseNotFound,
+	type ExpensePage,
 	Expense as ExpenseSchema,
 	type ListExpensesFilters,
 	type UpdateExpenseInput,
@@ -40,6 +41,11 @@ export interface ExpensesRepoService {
 		userId: UserId,
 		filters: ListExpensesFilters
 	) => Effect.Effect<readonly Expense[], DbError>;
+	readonly listPage: (
+		userId: UserId,
+		filters: ListExpensesFilters,
+		page: ExpensePage
+	) => Effect.Effect<ExpensesPage, DbError>;
 	readonly update: (
 		userId: UserId,
 		expenseId: ExpenseId,
@@ -48,6 +54,11 @@ export interface ExpensesRepoService {
 		Expense,
 		CategoryNotOwned | DbError | EmptyUpdate | ExpenseNotFound
 	>;
+}
+
+export interface ExpensesPage {
+	readonly expenses: readonly Expense[];
+	readonly hasMore: boolean;
 }
 
 type Transaction = Parameters<Parameters<DatabaseService['transaction']>[0]>[0];
@@ -94,10 +105,7 @@ export const ExpensesRepoLive = Layer.effect(
 			}
 		);
 
-		const list = Effect.fn('ExpensesRepo.list')(function* (
-			userId: UserId,
-			filters: ListExpensesFilters
-		) {
+		const filteredQuery = (userId: UserId, filters: ListExpensesFilters) => {
 			const conditions: SQL[] = [eq(expenses.userId, userId)];
 
 			if (filters.categoryId !== undefined) {
@@ -120,14 +128,46 @@ export const ExpensesRepoLive = Layer.effect(
 				}
 			}
 
-			const rows = yield* db
+			// id breaks ties so offset pages are stable.
+			return db
 				.select()
 				.from(expenses)
 				.where(and(...conditions))
-				.orderBy(desc(expenses.date), desc(expenses.createdAt))
-				.pipe(dbError('ExpensesRepo.list.query'));
+				.orderBy(
+					desc(expenses.date),
+					desc(expenses.createdAt),
+					desc(expenses.id)
+				)
+				.$dynamic();
+		};
+
+		const list = Effect.fn('ExpensesRepo.list')(function* (
+			userId: UserId,
+			filters: ListExpensesFilters
+		) {
+			const rows = yield* filteredQuery(userId, filters).pipe(
+				dbError('ExpensesRepo.list.query')
+			);
 
 			return yield* decodeExpenses('ExpensesRepo.list.decode', rows);
+		});
+
+		const listPage = Effect.fn('ExpensesRepo.listPage')(function* (
+			userId: UserId,
+			filters: ListExpensesFilters,
+			page: ExpensePage
+		) {
+			// Fetch one extra row to learn whether another page exists.
+			const rows = yield* filteredQuery(userId, filters)
+				.limit(page.limit + 1)
+				.offset(page.offset)
+				.pipe(dbError('ExpensesRepo.listPage.query'));
+			const decoded = yield* decodeExpenses(
+				'ExpensesRepo.listPage.decode',
+				rows.slice(0, page.limit)
+			);
+
+			return { expenses: decoded, hasMore: rows.length > page.limit };
 		});
 
 		const getById = Effect.fn('ExpensesRepo.getById')(function* (
@@ -244,6 +284,7 @@ export const ExpensesRepoLive = Layer.effect(
 			delete: deleteExpense,
 			getById,
 			list,
+			listPage,
 			update,
 		});
 	})

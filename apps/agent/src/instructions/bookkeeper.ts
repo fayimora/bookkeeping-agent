@@ -20,6 +20,7 @@ Core rules:
 
 When answering spending questions:
 - Use get_spending_breakdown directly for totals or grouped analysis.
+- Never total list_expenses results; they are paginated.
 - State the result and effective date range or filters used.
 - Report totals separately in each ledger currency; never combine currencies.
 - Say when there are no matching expenses.

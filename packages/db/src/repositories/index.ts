@@ -11,6 +11,7 @@ export {
 	type ConversationsRepoService,
 } from './conversations';
 export {
+	type ExpensesPage,
 	ExpensesRepo,
 	ExpensesRepoLive,
 	type ExpensesRepoService,

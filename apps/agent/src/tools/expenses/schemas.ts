@@ -1,10 +1,11 @@
-import { isoDatePattern } from '@bookeeping-agent/domain';
+import { isoDatePattern, maxExpensePageSize } from '@bookeeping-agent/domain';
 import {
 	boolean,
 	description,
 	type InferOutput,
 	integer,
 	maxLength,
+	maxValue,
 	minLength,
 	minValue,
 	number,
@@ -16,7 +17,7 @@ import {
 	string,
 } from 'valibot';
 
-export const listExpensesParameters = object({
+const expenseFilterParameters = object({
 	categoryId: optional(
 		pipe(string(), description('Category UUID to filter by.'))
 	),
@@ -50,10 +51,40 @@ export const listExpensesParameters = object({
 	),
 });
 
+export type ExpenseFilterToolInput = InferOutput<
+	typeof expenseFilterParameters
+>;
+
+export const defaultExpensePageSize = 50;
+
+export const listExpensesParameters = object({
+	...expenseFilterParameters.entries,
+	limit: optional(
+		pipe(
+			number(),
+			description(
+				`Maximum expenses to return. Defaults to ${defaultExpensePageSize}.`
+			),
+			integer(),
+			minValue(1),
+			maxValue(maxExpensePageSize)
+		)
+	),
+	offset: optional(
+		pipe(
+			number(),
+			description('Number of matching expenses to skip, for paging.'),
+			integer(),
+			minValue(0)
+		)
+	),
+});
+
 export type ListExpensesToolInput = InferOutput<typeof listExpensesParameters>;
 
+// Filters only: aggregates must always cover every matching expense.
 export const spendingBreakdownParameters = object({
-	...listExpensesParameters.entries,
+	...expenseFilterParameters.entries,
 	groupBy: pipe(
 		picklist(['total', 'month', 'category', 'month_category']),
 		description('How to group spending totals.')

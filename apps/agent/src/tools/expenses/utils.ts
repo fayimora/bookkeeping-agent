@@ -12,7 +12,7 @@ import { resolveCategory } from '../categories/tools';
 import { omitUndefined } from '../shared';
 import type {
 	CreateExpenseToolInput,
-	ListExpensesToolInput,
+	ExpenseFilterToolInput,
 	UpdateExpenseToolInput,
 } from './schemas';
 
@@ -21,7 +21,7 @@ const resolveCategorySlug = (userId: UserId, slug: string) =>
 
 export const resolveExpenseFilters = Effect.fn(
 	'AgentTools.resolveExpenseFilters'
-)(function* (userId: UserId, input: ListExpensesToolInput) {
+)(function* (userId: UserId, input: ExpenseFilterToolInput) {
 	let categoryId: CategoryId | undefined;
 	if (input.categoryId) {
 		categoryId = yield* Schema.decodeUnknownEffect(CategoryId)(
