@@ -1,4 +1,4 @@
-import { CategoriesRepo } from '@bookeeping-agent/db';
+import { CategoriesRepo, type CategoryRef } from '@bookeeping-agent/db';
 import {
 	Category,
 	CategoryId,
@@ -25,26 +25,36 @@ interface CategoryLookup {
 	readonly slug?: string;
 }
 
+const categoryRef = Effect.fn('AgentTools.categoryRef')(function* (
+	input: CategoryLookup
+) {
+	if (input.id) {
+		const ref: CategoryRef = {
+			id: yield* Schema.decodeUnknownEffect(CategoryId)(input.id),
+		};
+		return ref;
+	}
+
+	if (input.slug) {
+		const ref: CategoryRef = {
+			slug: yield* Schema.decodeUnknownEffect(Category.fields.slug)(input.slug),
+		};
+		return ref;
+	}
+
+	return yield* Effect.fail(
+		CategoryNotFound.make({ identifier: 'category id or slug' })
+	);
+});
+
 export const resolveCategory = Effect.fn('AgentTools.resolveCategory')(
 	function* (userId: UserId, input: CategoryLookup) {
+		const ref = yield* categoryRef(input);
 		const categories = yield* CategoriesRepo;
-
-		if (input.id) {
-			const categoryId = yield* Schema.decodeUnknownEffect(CategoryId)(
-				input.id
-			);
-			return yield* retryTransientRead(categories.getById(userId, categoryId));
-		}
-
-		if (input.slug) {
-			const slug = yield* Schema.decodeUnknownEffect(Category.fields.slug)(
-				input.slug
-			);
-			return yield* retryTransientRead(categories.getBySlug(userId, slug));
-		}
-
-		return yield* Effect.fail(
-			CategoryNotFound.make({ identifier: 'category id or slug' })
+		return yield* retryTransientRead(
+			'id' in ref
+				? categories.getById(userId, ref.id)
+				: categories.getBySlug(userId, ref.slug)
 		);
 	}
 );
@@ -110,16 +120,12 @@ export function categoryTools(userId: UserId): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const existing = yield* resolveCategory(userId, input);
+					const ref = yield* categoryRef(input);
 					const values = yield* Schema.decodeUnknownEffect(UpdateCategoryInput)(
 						omitUndefined({ name: input.name, slug: input.newSlug })
 					);
 					const categories = yield* CategoriesRepo;
-					const category = yield* categories.update(
-						userId,
-						existing.id,
-						values
-					);
+					const category = yield* categories.update(userId, ref, values);
 					return JSON.stringify({ category });
 				}),
 				signal
@@ -134,9 +140,9 @@ export function categoryTools(userId: UserId): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const existing = yield* resolveCategory(userId, input);
+					const ref = yield* categoryRef(input);
 					const categories = yield* CategoriesRepo;
-					const category = yield* categories.delete(userId, existing.id);
+					const category = yield* categories.delete(userId, ref);
 					return JSON.stringify({ deletedCategory: category });
 				}),
 				signal

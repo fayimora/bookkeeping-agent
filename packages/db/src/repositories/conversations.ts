@@ -3,7 +3,6 @@ import {
 	type Conversation,
 	type ConversationId,
 	ConversationNotFound,
-	ConversationNotOwned,
 	Conversation as ConversationSchema,
 	type CreateConversationInput,
 	type Message,
@@ -12,7 +11,7 @@ import {
 	type UserId,
 } from '@bookeeping-agent/domain';
 import { defaultConversationTitle } from '@bookeeping-agent/domain/conversation';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getColumns, sql } from 'drizzle-orm';
 import { Context, Effect, Layer, Schema } from 'effect';
 
 import { Database } from '#db/database';
@@ -35,7 +34,7 @@ export interface ConversationsRepoService {
 		conversationId: ConversationId,
 		input: AddMessageInput,
 		options?: AddMessageOptions
-	) => Effect.Effect<Message, ConversationNotOwned | DbError>;
+	) => Effect.Effect<Message, ConversationNotFound | DbError>;
 	readonly create: (
 		userId: UserId,
 		input: CreateConversationInput
@@ -54,7 +53,7 @@ export interface ConversationsRepoService {
 	readonly listMessages: (
 		userId: UserId,
 		conversationId: ConversationId
-	) => Effect.Effect<readonly Message[], ConversationNotOwned | DbError>;
+	) => Effect.Effect<readonly Message[], ConversationNotFound | DbError>;
 	readonly rename: (
 		userId: UserId,
 		conversationId: ConversationId,
@@ -199,29 +198,24 @@ export const ConversationsRepoLive = Layer.effect(
 			userId: UserId,
 			conversationId: ConversationId
 		) {
-			const ownerRows = yield* db
-				.select({ id: conversations.id })
-				.from(conversations)
+			// Scope through the owning conversation so the common case is one query.
+			const rows = yield* db
+				.select(getColumns(messages))
+				.from(messages)
+				.innerJoin(conversations, eq(conversations.id, messages.conversationId))
 				.where(
 					and(
 						eq(conversations.id, conversationId),
 						eq(conversations.userId, userId)
 					)
 				)
-				.limit(1)
-				.pipe(dbError('ConversationsRepo.listMessages.owner'));
-			if (ownerRows.length === 0) {
-				return yield* Effect.fail(
-					ConversationNotOwned.make({ conversationId, userId })
-				);
-			}
-
-			const rows = yield* db
-				.select()
-				.from(messages)
-				.where(eq(messages.conversationId, conversationId))
 				.orderBy(asc(messages.createdAt))
 				.pipe(dbError('ConversationsRepo.listMessages.query'));
+
+			// No rows means either an empty owned conversation or no access.
+			if (rows.length === 0) {
+				yield* getById(userId, conversationId);
+			}
 
 			return yield* decodeMessages(
 				'ConversationsRepo.listMessages.decode',
@@ -261,7 +255,7 @@ export const ConversationsRepoLive = Layer.effect(
 							.pipe(dbError('ConversationsRepo.addMessage.touch'));
 						if (touched.length === 0) {
 							return yield* Effect.fail(
-								ConversationNotOwned.make({ conversationId, userId })
+								ConversationNotFound.make({ conversationId })
 							);
 						}
 

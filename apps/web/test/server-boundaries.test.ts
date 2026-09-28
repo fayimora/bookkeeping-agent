@@ -6,7 +6,6 @@ import {
 	ConflictingUpdate,
 	ConversationId,
 	ConversationNotFound,
-	ConversationNotOwned,
 	EmptyUpdate,
 	ExpenseId,
 	ExpenseNotFound,
@@ -58,11 +57,6 @@ const expectedFailures = [
 	],
 	[CategoryNotFound.make({ identifier: 'food' }), 404, 'Resource not found.'],
 	[ConversationNotFound.make({ conversationId }), 404, 'Resource not found.'],
-	[
-		ConversationNotOwned.make({ conversationId, userId }),
-		404,
-		'Resource not found.',
-	],
 	[Unauthorized.make({}), 401, 'Unauthorized.'],
 	[
 		CategoryNotOwned.make({

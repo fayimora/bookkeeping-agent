@@ -9,7 +9,6 @@ import {
 	type CategoryNotOwned,
 	type ConflictingUpdate,
 	type ConversationNotFound,
-	type ConversationNotOwned,
 	type EmptyUpdate,
 	type ExpenseNotFound,
 	UserId,
@@ -66,7 +65,6 @@ export type ApplicationError =
 	| CategoryNotOwned
 	| ConflictingUpdate
 	| ConversationNotFound
-	| ConversationNotOwned
 	| DbError
 	| EmptyUpdate
 	| ExpenseNotFound
@@ -95,7 +93,6 @@ const failureByTag: {
 	CategoryNotOwned: conflict,
 	ConflictingUpdate: conflict,
 	ConversationNotFound: notFound,
-	ConversationNotOwned: notFound,
 	DbError: internalServerError,
 	EmptyUpdate: conflict,
 	ExpenseNotFound: notFound,

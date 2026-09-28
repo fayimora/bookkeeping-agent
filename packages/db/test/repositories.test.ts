@@ -7,6 +7,7 @@ import {
 	ExpensePage,
 	ListExpensesFilters,
 	RenameConversationInput,
+	UpdateCategoryInput,
 	UpdateExpenseInput,
 	UserId,
 } from '@bookeeping-agent/domain';
@@ -195,6 +196,109 @@ describe('Effect repositories', () => {
 				})
 		);
 
+		it.effect('updates and deletes categories by slug in one statement', () =>
+			Effect.gen(function* () {
+				const userId = yield* makeUser('category-slug');
+				const otherUserId = yield* makeUser('category-slug-other');
+				const categories = yield* CategoriesRepo;
+				const created = yield* categories.create(
+					userId,
+					yield* Schema.decodeUnknownEffect(CreateCategoryInput)({
+						name: 'Travel',
+						slug: 'travel',
+					})
+				);
+				const rename = yield* Schema.decodeUnknownEffect(UpdateCategoryInput)({
+					name: 'Trips',
+				});
+
+				const updated = yield* categories.update(
+					userId,
+					{ slug: 'travel' },
+					rename
+				);
+				assert.strictEqual(updated.id, created.id);
+				assert.strictEqual(updated.name, 'Trips');
+
+				const foreignUpdate = yield* Effect.flip(
+					categories.update(otherUserId, { slug: 'travel' }, rename)
+				);
+				assert.strictEqual(foreignUpdate._tag, 'CategoryNotFound');
+				if (foreignUpdate._tag === 'CategoryNotFound') {
+					assert.strictEqual(foreignUpdate.identifier, 'travel');
+				}
+
+				const empty = yield* Effect.flip(
+					categories.update(
+						userId,
+						{ slug: 'travel' },
+						yield* Schema.decodeUnknownEffect(UpdateCategoryInput)({})
+					)
+				);
+				assert.strictEqual(empty._tag, 'EmptyUpdate');
+
+				const foreignDelete = yield* Effect.flip(
+					categories.delete(otherUserId, { slug: 'travel' })
+				);
+				assert.strictEqual(foreignDelete._tag, 'CategoryNotFound');
+
+				const deleted = yield* categories.delete(userId, { slug: 'travel' });
+				assert.strictEqual(deleted.id, created.id);
+
+				const missing = yield* Effect.flip(
+					categories.delete(userId, { slug: 'travel' })
+				);
+				assert.strictEqual(missing._tag, 'CategoryNotFound');
+			})
+		);
+
+		it.effect('lists messages only for the owning user', () =>
+			Effect.gen(function* () {
+				const userId = yield* makeUser('list-messages-owner');
+				const otherUserId = yield* makeUser('list-messages-other');
+				const conversations = yield* ConversationsRepo;
+				const createInput = yield* Schema.decodeUnknownEffect(
+					CreateConversationInput
+				)({});
+				const empty = yield* conversations.create(userId, createInput);
+				const filled = yield* conversations.create(userId, createInput);
+
+				const emptyMessages = yield* conversations.listMessages(
+					userId,
+					empty.id
+				);
+				assert.deepStrictEqual(emptyMessages, []);
+
+				const emptyForeign = yield* Effect.flip(
+					conversations.listMessages(otherUserId, empty.id)
+				);
+				assert.strictEqual(emptyForeign._tag, 'ConversationNotFound');
+
+				for (const content of ['First', 'Second']) {
+					const input = yield* Schema.decodeUnknownEffect(AddMessageInput)({
+						content,
+						role: 'user',
+					});
+					yield* conversations.addMessage(userId, filled.id, input);
+					// Distinct createdAt values; it.effect's TestClock would stall Effect.sleep.
+					yield* Effect.promise(
+						() => new Promise((resolve) => setTimeout(resolve, 5))
+					);
+				}
+
+				const ordered = yield* conversations.listMessages(userId, filled.id);
+				assert.deepStrictEqual(
+					ordered.map((message) => message.content),
+					['First', 'Second']
+				);
+
+				const filledForeign = yield* Effect.flip(
+					conversations.listMessages(otherUserId, filled.id)
+				);
+				assert.strictEqual(filledForeign._tag, 'ConversationNotFound');
+			})
+		);
+
 		it.effect('adds messages transactionally and rejects non-owners', () =>
 			Effect.gen(function* () {
 				const userId = yield* makeUser('conversation-owner');
@@ -238,7 +342,7 @@ describe('Effect repositories', () => {
 				const error = yield* Effect.flip(
 					conversations.listMessages(otherUserId, conversation.id)
 				);
-				assert.strictEqual(error._tag, 'ConversationNotOwned');
+				assert.strictEqual(error._tag, 'ConversationNotFound');
 
 				const renameInput = yield* Schema.decodeUnknownEffect(
 					RenameConversationInput
@@ -304,7 +408,7 @@ describe('Effect repositories', () => {
 						titleIfDefault: 'Hijacked',
 					})
 				);
-				assert.strictEqual(error._tag, 'ConversationNotOwned');
+				assert.strictEqual(error._tag, 'ConversationNotFound');
 
 				const untouched = yield* conversations.getById(userId, conversation.id);
 				assert.strictEqual(untouched.title, conversation.title);

@@ -31,14 +31,6 @@ export class CategoryNotOwned extends Schema.TaggedErrorClass<CategoryNotOwned>(
 	}
 ) {}
 
-export class ConversationNotOwned extends Schema.TaggedErrorClass<ConversationNotOwned>()(
-	'ConversationNotOwned',
-	{
-		conversationId: ConversationId,
-		userId: UserId,
-	}
-) {}
-
 export class EmptyUpdate extends Schema.TaggedErrorClass<EmptyUpdate>()(
 	'EmptyUpdate',
 	{ entity: Schema.Literals(['expense', 'category']) }

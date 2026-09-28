@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { ConversationsRepo } from '@bookeeping-agent/db';
 import {
-	ConversationNotOwned,
+	ConversationNotFound,
 	Message,
 	SendChatMessageInput,
 	UserId,
@@ -45,9 +45,7 @@ const makeHarness = (options: { readonly owned: boolean }) => {
 									userId,
 								})
 							)
-						: Effect.fail(
-								ConversationNotOwned.make({ conversationId: id, userId })
-							);
+						: Effect.fail(ConversationNotFound.make({ conversationId: id }));
 				},
 				create: unexpected('create'),
 				delete: unexpected('delete'),

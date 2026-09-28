@@ -15,6 +15,11 @@ import { Database } from '#db/database';
 import { type DbError, dbError, missingRow } from '#db/errors';
 import { categories } from '#db/schema';
 
+/** Identifies one of a user's categories by id or slug in a single statement. */
+export type CategoryRef =
+	| { readonly id: CategoryId }
+	| { readonly slug: string };
+
 export interface CategoriesRepoService {
 	readonly create: (
 		userId: UserId,
@@ -22,7 +27,7 @@ export interface CategoriesRepoService {
 	) => Effect.Effect<Category, DbError>;
 	readonly delete: (
 		userId: UserId,
-		categoryId: CategoryId
+		ref: CategoryRef
 	) => Effect.Effect<Category, CategoryNotFound | DbError>;
 	readonly getById: (
 		userId: UserId,
@@ -37,7 +42,7 @@ export interface CategoriesRepoService {
 	) => Effect.Effect<readonly Category[], DbError>;
 	readonly update: (
 		userId: UserId,
-		categoryId: CategoryId,
+		ref: CategoryRef,
 		input: UpdateCategoryInput
 	) => Effect.Effect<Category, CategoryNotFound | DbError | EmptyUpdate>;
 }
@@ -65,6 +70,14 @@ const requiredCategory = (
 		? Effect.fail(CategoryNotFound.make({ identifier }))
 		: decodeCategory(operation, row);
 };
+
+const refIdentifier = (ref: CategoryRef) => ('id' in ref ? ref.id : ref.slug);
+
+const ownedCategory = (userId: UserId, ref: CategoryRef) =>
+	and(
+		'id' in ref ? eq(categories.id, ref.id) : eq(categories.slug, ref.slug),
+		eq(categories.userId, userId)
+	);
 
 export const CategoriesRepoLive = Layer.effect(
 	CategoriesRepo,
@@ -139,7 +152,7 @@ export const CategoriesRepoLive = Layer.effect(
 
 		const update = Effect.fn('CategoriesRepo.update')(function* (
 			userId: UserId,
-			categoryId: CategoryId,
+			ref: CategoryRef,
 			input: UpdateCategoryInput
 		) {
 			if (Object.keys(input).length === 0) {
@@ -149,34 +162,30 @@ export const CategoriesRepoLive = Layer.effect(
 			const rows = yield* db
 				.update(categories)
 				.set({ ...input, updatedAt: new Date() })
-				.where(
-					and(eq(categories.id, categoryId), eq(categories.userId, userId))
-				)
+				.where(ownedCategory(userId, ref))
 				.returning()
 				.pipe(dbError('CategoriesRepo.update.query'));
 
 			return yield* requiredCategory(
 				'CategoriesRepo.update.decode',
-				categoryId,
+				refIdentifier(ref),
 				rows
 			);
 		});
 
 		const deleteCategory = Effect.fn('CategoriesRepo.delete')(function* (
 			userId: UserId,
-			categoryId: CategoryId
+			ref: CategoryRef
 		) {
 			const rows = yield* db
 				.delete(categories)
-				.where(
-					and(eq(categories.id, categoryId), eq(categories.userId, userId))
-				)
+				.where(ownedCategory(userId, ref))
 				.returning()
 				.pipe(dbError('CategoriesRepo.delete.query'));
 
 			return yield* requiredCategory(
 				'CategoriesRepo.delete.decode',
-				categoryId,
+				refIdentifier(ref),
 				rows
 			);
 		});

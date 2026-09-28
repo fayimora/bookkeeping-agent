@@ -36,7 +36,11 @@ export const updateCategory = createServerFn({ method: 'POST' })
 			Effect.gen(function* () {
 				const currentUser = yield* CurrentUser;
 				const categories = yield* CategoriesRepo;
-				return yield* categories.update(currentUser.id, data.id, data.input);
+				return yield* categories.update(
+					currentUser.id,
+					{ id: data.id },
+					data.input
+				);
 			})
 		)
 	);
@@ -48,7 +52,7 @@ export const deleteCategory = createServerFn({ method: 'POST' })
 			Effect.gen(function* () {
 				const currentUser = yield* CurrentUser;
 				const categories = yield* CategoriesRepo;
-				return yield* categories.delete(currentUser.id, data.id);
+				return yield* categories.delete(currentUser.id, { id: data.id });
 			})
 		)
 	);

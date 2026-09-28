@@ -3,6 +3,7 @@ export {
 	CategoriesRepo,
 	CategoriesRepoLive,
 	type CategoriesRepoService,
+	type CategoryRef,
 } from './categories';
 export {
 	type AddMessageOptions,

@@ -100,7 +100,7 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 		?.map((image) => image.name)
 		.filter((name) => name !== undefined);
 
-	// Fails with ConversationNotOwned before the agent is ever prompted.
+	// Fails with ConversationNotFound before the agent is ever prompted.
 	const userMessage = yield* conversations.addMessage(
 		currentUser.id,
 		input.conversationId,
