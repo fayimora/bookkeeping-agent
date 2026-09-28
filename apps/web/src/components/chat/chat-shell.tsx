@@ -23,7 +23,7 @@ import {
 	UserIcon,
 	XIcon,
 } from 'lucide-react';
-import { type FormEvent, memo, useEffect, useRef, useState } from 'react';
+import { type FormEvent, memo, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { sendChatMessage } from '../../server/chat';
 import { listMessages } from '../../server/conversations';
@@ -31,6 +31,8 @@ import { listMessages } from '../../server/conversations';
 type ServerMessage = Awaited<ReturnType<typeof listMessages>>[number];
 
 const receiptOnlyMessage = 'Please log the expense from the attached receipt.';
+
+const pendingMessageId = 'pending-user-message';
 
 interface ChatImageInput {
 	data: string;
@@ -50,21 +52,6 @@ interface ChatMessage {
 	html?: string;
 	id: string;
 	role: 'assistant' | 'user';
-}
-
-function createMessage(
-	role: ChatMessage['role'],
-	content: string,
-	attachmentNames?: string[],
-	html?: string
-): ChatMessage {
-	return {
-		attachmentNames,
-		content,
-		html,
-		id: crypto.randomUUID(),
-		role,
-	};
 }
 
 // Memoized so composer keystrokes don't re-sanitize the whole transcript.
@@ -244,54 +231,67 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 		[]
 	);
 	const [message, setMessage] = useState('');
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const messagesQueryKey = ['messages', conversationId];
 
 	const messagesQuery = useQuery({
 		queryFn: async () => await listMessages({ data: { conversationId } }),
-		queryKey: ['messages', conversationId],
+		queryKey: messagesQueryKey,
 	});
-
-	const serverMessages = messagesQuery.data;
-
-	// Seed and reset the transcript from the authoritative server history.
-	// Because the query key includes conversationId, switching threads swaps
-	// the data and this effect reloads the correct transcript (no cross-thread
-	// bleed). Optimistic appends live in this same array until the next refetch.
-	useEffect(() => {
-		if (serverMessages) {
-			setMessages(serverMessages.map(mapServerMessage));
-		} else {
-			setMessages([]);
-		}
-	}, [serverMessages]);
 
 	const chatMutation = useMutation({
 		mutationFn: async (input: { content: string; images: ChatImageInput[] }) =>
 			await sendChatMessage({
 				data: { conversationId, images: input.images, message: input.content },
 			}),
-		onError: () => {
+		onError: async () => {
 			toast.error('Could not reach the bookkeeper agent');
+			// The user turn may already be persisted; resync to what was saved.
+			await queryClient.invalidateQueries({ queryKey: messagesQueryKey });
 		},
-		onSuccess: async (response) => {
-			setMessages((currentMessages) => [
-				...currentMessages,
-				createMessage(
-					'assistant',
-					response.message,
-					undefined,
-					response.messageHtml
-				),
-			]);
-			await Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: ['messages', conversationId],
-				}),
-				queryClient.invalidateQueries({ queryKey: ['conversations'] }),
-				queryClient.invalidateQueries({ queryKey: ['expenses'] }),
-			]);
+		// A background refetch landing mid-send would clobber the appended rows.
+		onMutate: () => queryClient.cancelQueries({ queryKey: messagesQueryKey }),
+		onSuccess: async ({ assistantMessage, userMessage }) => {
+			if (queryClient.getQueryData(messagesQueryKey) === undefined) {
+				await queryClient.invalidateQueries({ queryKey: messagesQueryKey });
+			} else {
+				queryClient.setQueryData<ServerMessage[]>(
+					messagesQueryKey,
+					(current) => [...(current ?? []), userMessage, assistantMessage]
+				);
+			}
+			// Not awaited: the mutation stays pending until onSuccess settles, which
+			// would show the optimistic bubble next to the persisted row. The prompt
+			// result doesn't say which tools ran, so ledger data is just marked
+			// stale; inactive queries refetch when their page is next opened.
+			for (const queryKey of [
+				['conversations'],
+				['expenses'],
+				['categories'],
+			]) {
+				queryClient.invalidateQueries({ queryKey });
+			}
 		},
 	});
+
+	const serverMessages = messagesQuery.data;
+	const pendingInput = chatMutation.isPending
+		? chatMutation.variables
+		: undefined;
+	const messages = useMemo(() => {
+		const persisted = serverMessages?.map(mapServerMessage) ?? [];
+		if (pendingInput === undefined) {
+			return persisted;
+		}
+		const pending: ChatMessage = {
+			attachmentNames: pendingInput.images.flatMap((image) =>
+				image.name === undefined ? [] : [image.name]
+			),
+			content: pendingInput.content,
+			id: pendingMessageId,
+			role: 'user',
+		};
+		return [...persisted, pending];
+	}, [serverMessages, pendingInput]);
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -303,14 +303,6 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 			return;
 		}
 
-		setMessages((currentMessages) => [
-			...currentMessages,
-			createMessage(
-				'user',
-				trimmedMessage,
-				selectedAttachments.map((attachment) => attachment.name)
-			),
-		]);
 		setMessage('');
 		setAttachments([]);
 		chatMutation.mutate({

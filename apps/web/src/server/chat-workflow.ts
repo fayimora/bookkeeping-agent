@@ -9,6 +9,7 @@ import { markdownToHtml } from 'satteri';
 
 import { CurrentUser } from './auth';
 import { BookkeeperClient } from './bookkeeper-client';
+import { serializeMessage } from './messages';
 
 const maxDerivedTitleLength = 48;
 
@@ -100,7 +101,7 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 		.filter((name) => name !== undefined);
 
 	// Fails with ConversationNotOwned before the agent is ever prompted.
-	yield* conversations.addMessage(
+	const userMessage = yield* conversations.addMessage(
 		currentUser.id,
 		input.conversationId,
 		{
@@ -129,14 +130,18 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 			message: input.message,
 		}
 	);
-	const message = response.text;
-	const messageHtml = renderMarkdownToSafeHtml(message);
+	const assistantMessage = yield* conversations.addMessage(
+		currentUser.id,
+		input.conversationId,
+		{
+			content: response.text,
+			contentHtml: renderMarkdownToSafeHtml(response.text),
+			role: 'assistant',
+		}
+	);
 
-	yield* conversations.addMessage(currentUser.id, input.conversationId, {
-		content: message,
-		contentHtml: messageHtml,
-		role: 'assistant',
-	});
-
-	return { message, messageHtml };
+	return {
+		assistantMessage: serializeMessage(assistantMessage),
+		userMessage: serializeMessage(userMessage),
+	};
 });

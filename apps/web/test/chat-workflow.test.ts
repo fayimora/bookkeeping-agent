@@ -1,10 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { ConversationsRepo } from '@bookeeping-agent/db';
 import {
 	ConversationNotOwned,
-	type Message,
+	Message,
 	SendChatMessageInput,
 	UserId,
 } from '@bookeeping-agent/domain';
+
 import { Effect, Layer, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 
@@ -29,9 +31,20 @@ const makeHarness = (options: { readonly owned: boolean }) => {
 			ConversationsRepo.of({
 				addMessage: (...args) => {
 					addMessageCalls.push(args);
-					const [userId, id] = args;
+					const [userId, id, message] = args;
 					return options.owned
-						? Effect.succeed({} as Message)
+						? Effect.succeed(
+								Schema.decodeUnknownSync(Message)({
+									attachmentNames: message.attachmentNames ?? null,
+									content: message.content,
+									contentHtml: message.contentHtml ?? null,
+									conversationId: id,
+									createdAt: new Date(),
+									id: randomUUID(),
+									role: message.role,
+									userId,
+								})
+							)
 						: Effect.fail(
 								ConversationNotOwned.make({ conversationId: id, userId })
 							);
@@ -70,7 +83,12 @@ describe('sendChatMessageWorkflow', () => {
 			sendChatMessageWorkflow(input).pipe(Effect.provide(harness.layer))
 		);
 
-		expect(result.message).toBe('Logged it.');
+		expect(result.userMessage.role).toBe('user');
+		expect(result.assistantMessage).toMatchObject({
+			content: 'Logged it.',
+			contentHtml: expect.stringContaining('<p>Logged it.</p>'),
+			role: 'assistant',
+		});
 		expect(harness.prompts).toEqual([`workflow-user::${conversationId}`]);
 		expect(harness.addMessageCalls).toHaveLength(2);
 		expect(harness.addMessageCalls[0]?.[3]).toEqual({

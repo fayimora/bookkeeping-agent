@@ -4,6 +4,7 @@ import { Effect } from 'effect';
 
 import { CurrentUser } from './auth';
 import { runAuthenticatedEffect } from './http';
+import { serializeMessage } from './messages';
 import { ConversationValidators } from './validators';
 
 export const listConversations = createServerFn({ method: 'GET' }).handler(() =>
@@ -68,13 +69,7 @@ export const listMessages = createServerFn({ method: 'GET' })
 					currentUser.id,
 					data.conversationId
 				);
-				return messages.map((message) => ({
-					...message,
-					attachmentNames:
-						message.attachmentNames === null
-							? null
-							: Array.from(message.attachmentNames),
-				}));
+				return messages.map(serializeMessage);
 			})
 		)
 	);
