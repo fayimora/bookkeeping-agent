@@ -29,13 +29,13 @@ import {
 import { type KeyboardEvent, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
-import { conversationsQueryOptions } from '../../lib/conversation-queries';
+import { conversationsQueryOptions } from '../../lib/queries';
 import {
-	createConversation,
 	deleteConversation,
 	type listConversations,
 	renameConversation,
 } from '../../server/conversations';
+import { useCreateConversation } from './use-create-conversation';
 
 type Conversation = Awaited<ReturnType<typeof listConversations>>[number];
 
@@ -53,24 +53,12 @@ export function ChatSidebar() {
 	const conversationsQuery = useQuery(conversationsQueryOptions);
 
 	const invalidateConversations = async () => {
-		await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+		await queryClient.invalidateQueries({
+			queryKey: conversationsQueryOptions.queryKey,
+		});
 	};
 
-	const createMutation = useMutation({
-		mutationFn: async () => await createConversation({ data: {} }),
-		onError: () => toast.error('Could not start a new chat'),
-		onSuccess: async (conversation) => {
-			if (!conversation) {
-				return;
-			}
-
-			await invalidateConversations();
-			await navigate({
-				params: { conversationId: conversation.id },
-				to: '/chat/$conversationId',
-			});
-		},
-	});
+	const createMutation = useCreateConversation();
 
 	const renameMutation = useMutation({
 		mutationFn: async (variables: { id: string; title: string }) =>

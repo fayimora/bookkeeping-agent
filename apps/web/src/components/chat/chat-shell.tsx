@@ -25,6 +25,11 @@ import {
 } from 'lucide-react';
 import { type FormEvent, memo, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import {
+	categoriesQueryOptions,
+	conversationsQueryOptions,
+	expensesQueryOptions,
+} from '../../lib/queries';
 import { sendChatMessage } from '../../server/chat';
 import { listMessages } from '../../server/conversations';
 
@@ -263,10 +268,10 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 			// would show the optimistic bubble next to the persisted row. The prompt
 			// result doesn't say which tools ran, so ledger data is just marked
 			// stale; inactive queries refetch when their page is next opened.
-			for (const queryKey of [
-				['conversations'],
-				['expenses'],
-				['categories'],
+			for (const { queryKey } of [
+				conversationsQueryOptions,
+				expensesQueryOptions,
+				categoriesQueryOptions,
 			]) {
 				queryClient.invalidateQueries({ queryKey });
 			}

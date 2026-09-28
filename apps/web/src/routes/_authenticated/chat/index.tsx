@@ -1,11 +1,9 @@
 import { Button } from '@bookeeping-agent/ui/components/button';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 import { MessagesSquareIcon, PlusIcon } from 'lucide-react';
-import { toast } from 'sonner';
 
-import { conversationsQueryOptions } from '../../../lib/conversation-queries';
-import { createConversation } from '../../../server/conversations';
+import { useCreateConversation } from '../../../components/chat/use-create-conversation';
+import { conversationsQueryOptions } from '../../../lib/queries';
 
 export const Route = createFileRoute('/_authenticated/chat/')({
 	beforeLoad: async ({ context }) => {
@@ -25,24 +23,7 @@ export const Route = createFileRoute('/_authenticated/chat/')({
 });
 
 function ChatIndex() {
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-
-	const createMutation = useMutation({
-		mutationFn: async () => await createConversation({ data: {} }),
-		onError: () => toast.error('Could not start a new chat'),
-		onSuccess: async (conversation) => {
-			if (!conversation) {
-				return;
-			}
-
-			await queryClient.invalidateQueries({ queryKey: ['conversations'] });
-			await navigate({
-				params: { conversationId: conversation.id },
-				to: '/chat/$conversationId',
-			});
-		},
-	});
+	const createMutation = useCreateConversation();
 
 	return (
 		<main className="grid min-h-0 place-items-center px-4 py-6 md:px-8">

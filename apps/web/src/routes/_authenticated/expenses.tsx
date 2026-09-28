@@ -25,11 +25,13 @@ import {
 	centsToDecimal,
 	toExpenseInput,
 } from '../../components/expenses/utils';
-import { listCategories } from '../../server/categories';
+import {
+	categoriesQueryOptions,
+	expensesQueryOptions,
+} from '../../lib/queries';
 import {
 	createExpense,
 	deleteExpense,
-	listExpenses,
 	updateExpense,
 } from '../../server/expenses';
 
@@ -45,15 +47,8 @@ function ExpensesPage() {
 		useState<ExpenseFormValues>(emptyFormValues);
 	const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
 
-	const categoriesQuery = useQuery({
-		queryFn: async () => await listCategories(),
-		queryKey: ['categories'],
-	});
-
-	const expensesQuery = useQuery({
-		queryFn: async () => await listExpenses({ data: {} }),
-		queryKey: ['expenses'],
-	});
+	const categoriesQuery = useQuery(categoriesQueryOptions);
+	const expensesQuery = useQuery(expensesQueryOptions);
 
 	const categoriesById = useMemo(
 		() =>
@@ -64,7 +59,9 @@ function ExpensesPage() {
 	);
 
 	const invalidateExpenses = async () => {
-		await queryClient.invalidateQueries({ queryKey: ['expenses'] });
+		await queryClient.invalidateQueries({
+			queryKey: expensesQueryOptions.queryKey,
+		});
 	};
 
 	const createMutation = useMutation({

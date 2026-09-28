@@ -22,9 +22,12 @@ import {
 } from '../../components/categories/types';
 import { toCategoryInput } from '../../components/categories/utils';
 import {
+	categoriesQueryOptions,
+	expensesQueryOptions,
+} from '../../lib/queries';
+import {
 	createCategory,
 	deleteCategory,
-	listCategories,
 	updateCategory,
 } from '../../server/categories';
 
@@ -43,13 +46,12 @@ function CategoriesPage() {
 		null
 	);
 
-	const categoriesQuery = useQuery({
-		queryFn: async () => await listCategories(),
-		queryKey: ['categories'],
-	});
+	const categoriesQuery = useQuery(categoriesQueryOptions);
 
 	const invalidateCategories = async () => {
-		await queryClient.invalidateQueries({ queryKey: ['categories'] });
+		await queryClient.invalidateQueries({
+			queryKey: categoriesQueryOptions.queryKey,
+		});
 	};
 
 	const createMutation = useMutation({
@@ -93,7 +95,9 @@ function CategoriesPage() {
 		onSuccess: async () => {
 			await Promise.all([
 				invalidateCategories(),
-				queryClient.invalidateQueries({ queryKey: ['expenses'] }),
+				queryClient.invalidateQueries({
+					queryKey: expensesQueryOptions.queryKey,
+				}),
 			]);
 			setCategoryToDelete(null);
 			toast.success('Category deleted');
