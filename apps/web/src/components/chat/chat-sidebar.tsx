@@ -29,10 +29,11 @@ import {
 import { type KeyboardEvent, type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 
+import { conversationsQueryOptions } from '../../lib/conversation-queries';
 import {
 	createConversation,
 	deleteConversation,
-	listConversations,
+	type listConversations,
 	renameConversation,
 } from '../../server/conversations';
 
@@ -49,10 +50,7 @@ export function ChatSidebar() {
 	const [conversationToDelete, setConversationToDelete] =
 		useState<Conversation | null>(null);
 
-	const conversationsQuery = useQuery({
-		queryFn: async () => await listConversations(),
-		queryKey: ['conversations'],
-	});
+	const conversationsQuery = useQuery(conversationsQueryOptions);
 
 	const invalidateConversations = async () => {
 		await queryClient.invalidateQueries({ queryKey: ['conversations'] });

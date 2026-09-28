@@ -4,14 +4,14 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { MessagesSquareIcon, PlusIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-	createConversation,
-	listConversations,
-} from '../../../server/conversations';
+import { conversationsQueryOptions } from '../../../lib/conversation-queries';
+import { createConversation } from '../../../server/conversations';
 
 export const Route = createFileRoute('/_authenticated/chat/')({
-	beforeLoad: async () => {
-		const conversations = await listConversations();
+	beforeLoad: async ({ context }) => {
+		const conversations = await context.queryClient.ensureQueryData(
+			conversationsQueryOptions
+		);
 		const [latest] = conversations;
 
 		if (latest) {

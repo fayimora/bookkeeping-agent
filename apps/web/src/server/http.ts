@@ -1,16 +1,17 @@
 import type {
 	CategoriesRepo,
 	ConversationsRepo,
+	DbError,
 	ExpensesRepo,
 } from '@bookeeping-agent/db';
 import {
-	CategoryNotFound,
-	CategoryNotOwned,
-	ConflictingUpdate,
-	ConversationNotFound,
-	ConversationNotOwned,
-	EmptyUpdate,
-	ExpenseNotFound,
+	type CategoryNotFound,
+	type CategoryNotOwned,
+	type ConflictingUpdate,
+	type ConversationNotFound,
+	type ConversationNotOwned,
+	type EmptyUpdate,
+	type ExpenseNotFound,
 	UserId,
 } from '@bookeeping-agent/domain';
 import {
@@ -26,10 +27,15 @@ import {
 	Schema,
 } from 'effect';
 
-import { BetterAuth, CurrentUser, Unauthorized } from './auth';
 import {
+	BetterAuth,
+	type BetterAuthError,
+	CurrentUser,
+	Unauthorized,
+} from './auth';
+import type {
 	AgentResponseError,
-	type BookkeeperClient,
+	BookkeeperClient,
 	BookkeeperClientError,
 } from './bookkeeper-client';
 import { webRuntime } from './runtime';
@@ -51,32 +57,63 @@ const internalServerError: HttpFailure = {
 	status: 500,
 };
 
+/** Every typed failure a server function may surface; runners reject others. */
+export type ApplicationError =
+	| AgentResponseError
+	| BetterAuthError
+	| BookkeeperClientError
+	| CategoryNotFound
+	| CategoryNotOwned
+	| ConflictingUpdate
+	| ConversationNotFound
+	| ConversationNotOwned
+	| DbError
+	| EmptyUpdate
+	| ExpenseNotFound
+	| Schema.SchemaError
+	| Unauthorized;
+
+const notFound: HttpFailure = { message: 'Resource not found.', status: 404 };
+const conflict: HttpFailure = {
+	message: 'Request conflicts with current state.',
+	status: 409,
+};
+const agentUnavailable: HttpFailure = {
+	message: 'Bookkeeper agent is unavailable.',
+	status: 502,
+};
+
+// A mapped type over the tags, so adding an error to the union without a
+// status here is a compile error.
+const failureByTag: {
+	readonly [Tag in ApplicationError['_tag']]: HttpFailure;
+} = {
+	AgentResponseError: agentUnavailable,
+	BetterAuthError: internalServerError,
+	BookkeeperClientError: agentUnavailable,
+	CategoryNotFound: notFound,
+	CategoryNotOwned: conflict,
+	ConflictingUpdate: conflict,
+	ConversationNotFound: notFound,
+	ConversationNotOwned: notFound,
+	DbError: internalServerError,
+	EmptyUpdate: conflict,
+	ExpenseNotFound: notFound,
+	SchemaError: internalServerError,
+	Unauthorized: { message: 'Unauthorized.', status: 401 },
+};
+
+const isApplicationError = (error: unknown): error is ApplicationError =>
+	typeof error === 'object' &&
+	error !== null &&
+	'_tag' in error &&
+	typeof error._tag === 'string' &&
+	Object.hasOwn(failureByTag, error._tag);
+
 export function classifyApplicationError(error: unknown): HttpFailure {
-	if (
-		error instanceof ExpenseNotFound ||
-		error instanceof CategoryNotFound ||
-		error instanceof ConversationNotFound ||
-		error instanceof ConversationNotOwned
-	) {
-		return { message: 'Resource not found.', status: 404 };
-	}
-	if (error instanceof Unauthorized) {
-		return { message: 'Unauthorized.', status: 401 };
-	}
-	if (
-		error instanceof CategoryNotOwned ||
-		error instanceof EmptyUpdate ||
-		error instanceof ConflictingUpdate
-	) {
-		return { message: 'Request conflicts with current state.', status: 409 };
-	}
-	if (
-		error instanceof BookkeeperClientError ||
-		error instanceof AgentResponseError
-	) {
-		return { message: 'Bookkeeper agent is unavailable.', status: 502 };
-	}
-	return internalServerError;
+	return isApplicationError(error)
+		? failureByTag[error._tag]
+		: internalServerError;
 }
 
 const completeHttpExit = <A, E>(exit: Exit.Exit<A, E>): A => {
@@ -98,7 +135,9 @@ const completeHttpExit = <A, E>(exit: Exit.Exit<A, E>): A => {
 export const makeWebEffectRunner = <R, ER>(
 	runtime: ManagedRuntime.ManagedRuntime<R, ER>
 ) =>
-	function run<A, E>(effect: Effect.Effect<A, E, R>): Promise<A> {
+	function run<A, E extends ApplicationError>(
+		effect: Effect.Effect<A, E, R>
+	): Promise<A> {
 		return runtime
 			.runPromiseExit(effect)
 			.then((exit) => completeHttpExit(exit));
@@ -106,15 +145,19 @@ export const makeWebEffectRunner = <R, ER>(
 
 const runWebRuntimeEffect = makeWebEffectRunner(webRuntime);
 
-export function runWebEffect<A, E, R extends WebServices>(
-	effect: Effect.Effect<A, E, R>
-): Promise<A> {
+export function runWebEffect<
+	A,
+	E extends ApplicationError,
+	R extends WebServices,
+>(effect: Effect.Effect<A, E, R>): Promise<A> {
 	return runWebRuntimeEffect(effect);
 }
 
-export function runAuthenticatedEffect<A, E, R extends WebServices>(
-	effect: Effect.Effect<A, E, CurrentUser | R>
-): Promise<A> {
+export function runAuthenticatedEffect<
+	A,
+	E extends ApplicationError,
+	R extends WebServices,
+>(effect: Effect.Effect<A, E, CurrentUser | R>): Promise<A> {
 	const headers = getRequestHeaders();
 	const authenticated = Effect.gen(function* () {
 		const auth = yield* BetterAuth;

@@ -1,8 +1,9 @@
 import { Toaster } from '@bookeeping-agent/ui/components/sonner';
 import { TanStackDevtools } from '@tanstack/react-devtools';
+import type { QueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools';
 import {
-	createRootRoute,
+	createRootRouteWithContext,
 	HeadContent,
 	Outlet,
 	Scripts,
@@ -14,7 +15,9 @@ import appCss from '../index.css?url';
 import { loadSession } from '../lib/session-cache';
 import { QueryProvider } from '../providers/query-provider';
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{
+	queryClient: QueryClient;
+}>()({
 	beforeLoad: async () => ({ session: await loadSession() }),
 	component: RootDocument,
 	head: () => ({
@@ -40,13 +43,14 @@ export const Route = createRootRoute({
 });
 
 function RootDocument() {
+	const { queryClient } = Route.useRouteContext();
 	return (
 		<html className="dark" lang="en">
 			<head>
 				<HeadContent />
 			</head>
 			<body>
-				<QueryProvider>
+				<QueryProvider client={queryClient}>
 					<div className="grid h-svh grid-rows-[auto_1fr]">
 						<Header />
 						<Outlet />

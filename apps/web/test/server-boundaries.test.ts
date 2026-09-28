@@ -1,4 +1,17 @@
-import { EmptyUpdate } from '@bookeeping-agent/domain';
+import { DbError } from '@bookeeping-agent/db';
+import {
+	CategoryId,
+	CategoryNotFound,
+	CategoryNotOwned,
+	ConflictingUpdate,
+	ConversationId,
+	ConversationNotFound,
+	ConversationNotOwned,
+	EmptyUpdate,
+	ExpenseId,
+	ExpenseNotFound,
+	UserId,
+} from '@bookeeping-agent/domain';
 import {
 	getRequestHeaders,
 	getResponseStatus,
@@ -7,8 +20,12 @@ import {
 import { Effect, Layer, ManagedRuntime, Schema } from 'effect';
 import { describe, expect, it } from 'vitest';
 
-import { Unauthorized } from '../src/server/auth';
-import { BookkeeperResponse } from '../src/server/bookkeeper-client';
+import { BetterAuthError, Unauthorized } from '../src/server/auth';
+import {
+	AgentResponseError,
+	BookkeeperClientError,
+	BookkeeperResponse,
+} from '../src/server/bookkeeper-client';
 import {
 	classifyApplicationError,
 	makeWebEffectRunner,
@@ -22,6 +39,63 @@ const makeDeferred = () => {
 	});
 	return { complete, promise };
 };
+
+const uuid = '11111111-1111-4111-8111-111111111111';
+const userId = Schema.decodeUnknownSync(UserId)('user-1');
+const conversationId = Schema.decodeUnknownSync(ConversationId)(uuid);
+const cause = new Error('boom');
+const schemaError = Effect.runSync(
+	Effect.flip(Schema.decodeUnknownEffect(ExpenseId)('not-a-uuid'))
+);
+
+const expectedFailures = [
+	[
+		ExpenseNotFound.make({
+			expenseId: Schema.decodeUnknownSync(ExpenseId)(uuid),
+		}),
+		404,
+		'Resource not found.',
+	],
+	[CategoryNotFound.make({ identifier: 'food' }), 404, 'Resource not found.'],
+	[ConversationNotFound.make({ conversationId }), 404, 'Resource not found.'],
+	[
+		ConversationNotOwned.make({ conversationId, userId }),
+		404,
+		'Resource not found.',
+	],
+	[Unauthorized.make({}), 401, 'Unauthorized.'],
+	[
+		CategoryNotOwned.make({
+			categoryId: Schema.decodeUnknownSync(CategoryId)(uuid),
+			userId,
+		}),
+		409,
+		'Request conflicts with current state.',
+	],
+	[
+		EmptyUpdate.make({ entity: 'expense' }),
+		409,
+		'Request conflicts with current state.',
+	],
+	[
+		ConflictingUpdate.make({ field: 'category' }),
+		409,
+		'Request conflicts with current state.',
+	],
+	[
+		BookkeeperClientError.make({ cause, operation: 'prompt' }),
+		502,
+		'Bookkeeper agent is unavailable.',
+	],
+	[AgentResponseError.make({ cause }), 502, 'Bookkeeper agent is unavailable.'],
+	[DbError.make({ cause, operation: 'query' }), 500, 'Internal server error.'],
+	[
+		BetterAuthError.make({ cause, operation: 'getSession' }),
+		500,
+		'Internal server error.',
+	],
+	[schemaError, 500, 'Internal server error.'],
+] as const;
 
 const validBookkeeperResponse = {
 	text: 'Done.',
@@ -130,12 +204,22 @@ describe('web server boundaries', () => {
 		}
 	});
 
-	it('classifies unauthorized failures without exposing details', () => {
-		expect(classifyApplicationError(Unauthorized.make({}))).toEqual({
-			message: 'Unauthorized.',
-			status: 401,
-		});
-	});
+	it.each(expectedFailures)(
+		'classifies %o without exposing details',
+		(error, status, message) => {
+			expect(classifyApplicationError(error)).toEqual({ message, status });
+		}
+	);
+
+	it.each([new Error('untyped'), { _tag: 'SomethingElse' }, 'string', null])(
+		'falls back to 500 for unknown value %o',
+		(value) => {
+			expect(classifyApplicationError(value)).toEqual({
+				message: 'Internal server error.',
+				status: 500,
+			});
+		}
+	);
 
 	it('decodes the current agent response contract', async () => {
 		const decoded = await Effect.runPromise(
