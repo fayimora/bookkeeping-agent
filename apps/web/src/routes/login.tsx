@@ -13,7 +13,7 @@ import { type FormEvent, useState } from 'react';
 import { toast } from 'sonner';
 
 import { authClient } from '../lib/auth-client';
-import { getSession } from '../lib/auth-functions';
+import { clearSessionCache } from '../lib/session-cache';
 
 const seededUsernames = new Set(['alice', 'bob', 'charlie']);
 
@@ -22,10 +22,8 @@ function usernameToEmail(username: string) {
 }
 
 export const Route = createFileRoute('/login')({
-	beforeLoad: async () => {
-		const session = await getSession();
-
-		if (session) {
+	beforeLoad: ({ context }) => {
+		if (context.session) {
 			throw redirect({ to: '/expenses' });
 		}
 	},
@@ -60,6 +58,7 @@ function LoginPage() {
 				return;
 			}
 
+			clearSessionCache();
 			await navigate({ to: '/expenses' });
 		} finally {
 			setIsSubmitting(false);

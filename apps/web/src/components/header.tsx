@@ -1,11 +1,12 @@
 import { Button } from '@bookeeping-agent/ui/components/button';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { Link, useNavigate, useRouteContext } from '@tanstack/react-router';
 
 import { authClient } from '../lib/auth-client';
+import { clearSessionCache } from '../lib/session-cache';
 
 export default function Header() {
 	const navigate = useNavigate();
-	const session = authClient.useSession();
+	const { session } = useRouteContext({ from: '__root__' });
 	const links = [
 		{ label: 'Home', to: '/' },
 		{ label: 'Expenses', to: '/expenses' },
@@ -15,6 +16,7 @@ export default function Header() {
 
 	const handleLogout = async () => {
 		await authClient.signOut();
+		clearSessionCache();
 		await navigate({ to: '/login' });
 	};
 
@@ -34,11 +36,9 @@ export default function Header() {
 					))}
 				</nav>
 				<div className="flex items-center gap-3 text-sm">
-					{session.data ? (
+					{session ? (
 						<>
-							<span className="text-muted-foreground">
-								{session.data.user.name}
-							</span>
+							<span className="text-muted-foreground">{session.user.name}</span>
 							<Button
 								onClick={handleLogout}
 								size="xs"

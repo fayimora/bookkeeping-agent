@@ -11,9 +11,11 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools';
 
 import Header from '../components/header';
 import appCss from '../index.css?url';
+import { loadSession } from '../lib/session-cache';
 import { QueryProvider } from '../providers/query-provider';
 
 export const Route = createRootRoute({
+	beforeLoad: async () => ({ session: await loadSession() }),
 	component: RootDocument,
 	head: () => ({
 		links: [
