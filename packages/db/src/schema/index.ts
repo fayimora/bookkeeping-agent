@@ -154,10 +154,8 @@ export const expenses = pgTable(
 		vendor: varchar('vendor', { length: 200 }).notNull(),
 	},
 	(table) => [
-		index('expenses_user_id_idx').on(table.userId),
 		index('expenses_user_id_date_idx').on(table.userId, table.date),
 		index('expenses_category_id_idx').on(table.categoryId),
-		index('expenses_vendor_idx').on(table.vendor),
 	]
 );
 
@@ -182,7 +180,6 @@ export const conversations = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 	},
 	(table) => [
-		index('conversations_user_id_idx').on(table.userId),
 		index('conversations_user_id_last_message_idx').on(
 			table.userId,
 			table.lastMessageAt
@@ -209,7 +206,6 @@ export const messages = pgTable(
 			.references(() => users.id, { onDelete: 'cascade' }),
 	},
 	(table) => [
-		index('messages_conversation_id_idx').on(table.conversationId),
 		index('messages_conversation_created_idx').on(
 			table.conversationId,
 			table.createdAt
