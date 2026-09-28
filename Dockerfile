@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM oven/bun:1.3.14 AS builder
+FROM oven/bun:1.4.2 AS builder
 WORKDIR /app
 
 RUN apt-get update \
@@ -28,7 +28,7 @@ RUN apt-get update \
 	&& rm -rf /var/lib/apt/lists/*
 CMD ["sh", "-ec", "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -c 'DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;' && bun run --cwd packages/db db:migrate && bun run --cwd packages/db db:seed"]
 
-FROM oven/bun:1.3.14 AS web
+FROM oven/bun:1.4.2 AS web
 WORKDIR /app
 
 RUN apt-get update \
@@ -44,12 +44,17 @@ COPY --from=builder /app /app
 EXPOSE 3000
 CMD ["sh", "-c", "cd /app && bun run db:migrate && cd apps/web && bun run vp preview --host 0.0.0.0 --port ${PORT:-3000}"]
 
-FROM node:24-slim AS agent
+FROM oven/bun:1.4.2 AS agent
 WORKDIR /app
+
+RUN apt-get update \
+	&& apt-get install -y --no-install-recommends ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production
 ENV PORT=3583
 
 COPY --from=builder /app /app
 
 EXPOSE 3583
-CMD ["node", "apps/agent/dist/server.mjs"]
+CMD ["bun", "apps/agent/dist/server.mjs"]

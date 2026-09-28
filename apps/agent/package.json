@@ -6,7 +6,7 @@
     "build": "vite build",
     "check-types": "tsc --noEmit",
     "dev": "vite dev --port 3583",
-    "start": "node dist/server.mjs",
+    "start": "bun dist/server.mjs",
     "test": "vitest run"
   },
   "dependencies": {
