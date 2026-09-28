@@ -1,4 +1,8 @@
 import {
+	maxCategoryNameLength,
+	maxCategorySlugLength,
+} from '@bookeeping-agent/domain';
+import {
 	description,
 	maxLength,
 	minLength,
@@ -18,14 +22,14 @@ const categorySlugParameter = pipe(
 	string(),
 	description('Category slug, such as food or travel.'),
 	minLength(1),
-	maxLength(100)
+	maxLength(maxCategorySlugLength)
 );
 
 const categoryNameParameter = pipe(
 	string(),
 	description('Category display name.'),
 	minLength(1),
-	maxLength(100)
+	maxLength(maxCategoryNameLength)
 );
 
 export const listCategoriesParameters = object({});
@@ -48,7 +52,7 @@ export const updateCategoryParameters = object({
 			string(),
 			description('New category slug to save.'),
 			minLength(1),
-			maxLength(100)
+			maxLength(maxCategorySlugLength)
 		)
 	),
 	slug: optional(categorySlugParameter),

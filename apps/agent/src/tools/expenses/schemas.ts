@@ -1,4 +1,9 @@
-import { isoDatePattern, maxExpensePageSize } from '@bookeeping-agent/domain';
+import {
+	currencyCodeLength,
+	isoDatePattern,
+	maxExpensePageSize,
+	maxVendorLength,
+} from '@bookeeping-agent/domain';
 import {
 	boolean,
 	description,
@@ -128,8 +133,8 @@ export const createExpenseParameters = object({
 		pipe(
 			string(),
 			description('Three-letter currency code. Defaults to GBP.'),
-			minLength(3),
-			maxLength(3)
+			minLength(currencyCodeLength),
+			maxLength(currencyCodeLength)
 		)
 	),
 	date: pipe(
@@ -148,7 +153,7 @@ export const createExpenseParameters = object({
 		string(),
 		description('Merchant or vendor name.'),
 		minLength(1),
-		maxLength(200)
+		maxLength(maxVendorLength)
 	),
 });
 
@@ -190,8 +195,8 @@ export const updateExpenseParameters = object({
 		pipe(
 			string(),
 			description('Updated three-letter currency code.'),
-			minLength(3),
-			maxLength(3)
+			minLength(currencyCodeLength),
+			maxLength(currencyCodeLength)
 		)
 	),
 	date: optional(
@@ -214,7 +219,7 @@ export const updateExpenseParameters = object({
 			string(),
 			description('Updated merchant or vendor name.'),
 			minLength(1),
-			maxLength(200)
+			maxLength(maxVendorLength)
 		)
 	),
 });

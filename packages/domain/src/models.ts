@@ -13,12 +13,20 @@ import {
 	UserId,
 } from './primitives';
 
-const CategoryName = TrimmedNonEmptyString.check(Schema.isMaxLength(100));
-const CategorySlug = TrimmedNonEmptyString.check(Schema.isMaxLength(100));
+export const maxCategoryNameLength = 100;
+export const maxCategorySlugLength = 100;
+export const maxVendorLength = 200;
+
+const CategoryName = TrimmedNonEmptyString.check(
+	Schema.isMaxLength(maxCategoryNameLength)
+);
+const CategorySlug = TrimmedNonEmptyString.check(
+	Schema.isMaxLength(maxCategorySlugLength)
+);
 const ConversationTitle = TrimmedNonEmptyString.check(
 	Schema.isMaxLength(maxConversationTitleLength)
 );
-const Vendor = TrimmedNonEmptyString.check(Schema.isMaxLength(200));
+const Vendor = TrimmedNonEmptyString.check(Schema.isMaxLength(maxVendorLength));
 
 export const MessageRole = Schema.Literals(['user', 'assistant']);
 export type MessageRole = typeof MessageRole.Type;

@@ -19,11 +19,13 @@ export type ConversationId = typeof ConversationId.Type;
 export const MessageId = Uuid.pipe(Schema.brand('MessageId'));
 export type MessageId = typeof MessageId.Type;
 
+export const currencyCodeLength = 3;
+
 export const Currency = Schema.Trim.pipe(
 	Schema.decode(SchemaTransformation.toUpperCase())
 )
 	.check(Schema.isUppercased())
-	.check(Schema.isLengthBetween(3, 3))
+	.check(Schema.isLengthBetween(currencyCodeLength, currencyCodeLength))
 	.pipe(Schema.brand('Currency'));
 export type Currency = typeof Currency.Type;
 
