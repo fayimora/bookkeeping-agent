@@ -2,4 +2,4 @@
 export { Database, DbLive, PgClientLive } from './database';
 export { DbError } from './errors';
 export * from './repositories';
-export { RepositoriesLive } from './runtime';
+export { RepositoriesLive, RepositoriesPgLive } from './runtime';

@@ -1,17 +1,20 @@
 import { Layer } from 'effect';
 
-import { DbLive } from './database';
+import { DbLive, PgClientLive } from './database';
 import {
 	CategoriesRepoLive,
 	ConversationsRepoLive,
 	ExpensesRepoLive,
 } from './repositories';
 
-const RepositoryServicesLive = Layer.mergeAll(
+/** Repository graph requiring a PostgreSQL client; tests provide their own. */
+export const RepositoriesLive = Layer.mergeAll(
 	CategoriesRepoLive,
 	ConversationsRepoLive,
 	ExpensesRepoLive
 ).pipe(Layer.provide(DbLive));
 
-/** Repository graph requiring a configured PostgreSQL client. */
-export const RepositoriesLive = RepositoryServicesLive;
+/** Repositories wired to the configured PostgreSQL client, for apps. */
+export const RepositoriesPgLive = RepositoriesLive.pipe(
+	Layer.provide(PgClientLive)
+);
