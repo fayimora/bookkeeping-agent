@@ -11,7 +11,8 @@ import {
 	type RenameConversationInput,
 	type UserId,
 } from '@bookeeping-agent/domain';
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { defaultConversationTitle } from '@bookeeping-agent/domain/conversation';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { Context, Effect, Layer, Schema } from 'effect';
 
 import { Database } from '#db/database';
@@ -23,11 +24,17 @@ import {
 } from '#db/errors';
 import { conversations, messages } from '#db/schema';
 
+export interface AddMessageOptions {
+	/** Replace the title in the same statement, only while it is still the default. */
+	readonly titleIfDefault?: string;
+}
+
 export interface ConversationsRepoService {
 	readonly addMessage: (
 		userId: UserId,
 		conversationId: ConversationId,
-		input: AddMessageInput
+		input: AddMessageInput,
+		options?: AddMessageOptions
 	) => Effect.Effect<Message, ConversationNotOwned | DbError>;
 	readonly create: (
 		userId: UserId,
@@ -225,30 +232,39 @@ export const ConversationsRepoLive = Layer.effect(
 		const addMessage = Effect.fn('ConversationsRepo.addMessage')(function* (
 			userId: UserId,
 			conversationId: ConversationId,
-			input: AddMessageInput
+			input: AddMessageInput,
+			options: AddMessageOptions = {}
 		) {
 			return yield* db
 				.transaction((tx) =>
 					Effect.gen(function* () {
-						const ownerRows = yield* tx
-							.select({ id: conversations.id })
-							.from(conversations)
+						const now = new Date();
+						// The owner-scoped touch doubles as the ownership check and row lock.
+						const touched = yield* tx
+							.update(conversations)
+							.set({
+								lastMessageAt: now,
+								updatedAt: now,
+								...(options.titleIfDefault === undefined
+									? {}
+									: {
+											title: sql`CASE WHEN ${conversations.title} = ${defaultConversationTitle} THEN ${options.titleIfDefault} ELSE ${conversations.title} END`,
+										}),
+							})
 							.where(
 								and(
 									eq(conversations.id, conversationId),
 									eq(conversations.userId, userId)
 								)
 							)
-							.limit(1)
-							.for('key share')
-							.pipe(dbError('ConversationsRepo.addMessage.owner'));
-						if (ownerRows.length === 0) {
+							.returning({ id: conversations.id })
+							.pipe(dbError('ConversationsRepo.addMessage.touch'));
+						if (touched.length === 0) {
 							return yield* Effect.fail(
 								ConversationNotOwned.make({ conversationId, userId })
 							);
 						}
 
-						const now = new Date();
 						const rows = yield* tx
 							.insert(messages)
 							.values({
@@ -272,12 +288,6 @@ export const ConversationsRepoLive = Layer.effect(
 								missingRow('ConversationsRepo.addMessage.insert')
 							);
 						}
-
-						yield* tx
-							.update(conversations)
-							.set({ lastMessageAt: now, updatedAt: now })
-							.where(eq(conversations.id, conversationId))
-							.pipe(dbError('ConversationsRepo.addMessage.touch'));
 
 						return yield* decodeMessage(
 							'ConversationsRepo.addMessage.decode',

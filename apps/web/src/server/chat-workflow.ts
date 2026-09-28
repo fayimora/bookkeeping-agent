@@ -1,6 +1,5 @@
 import { ConversationsRepo } from '@bookeeping-agent/db';
 import {
-	defaultConversationTitle,
 	makeAgentInstanceId,
 	type SendChatMessageInput,
 } from '@bookeeping-agent/domain';
@@ -96,28 +95,24 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 	const currentUser = yield* CurrentUser;
 	const conversations = yield* ConversationsRepo;
 	const bookkeeper = yield* BookkeeperClient;
-	const conversation = yield* conversations.getById(
-		currentUser.id,
-		input.conversationId
-	);
 	const attachmentNames = input.images
 		?.map((image) => image.name)
 		.filter((name) => name !== undefined);
 
-	yield* conversations.addMessage(currentUser.id, conversation.id, {
-		attachmentNames:
-			attachmentNames === undefined || attachmentNames.length === 0
-				? null
-				: attachmentNames,
-		content: input.message,
-		role: 'user',
-	});
-
-	if (conversation.title === defaultConversationTitle) {
-		yield* conversations.rename(currentUser.id, conversation.id, {
-			title: deriveConversationTitle(input.message),
-		});
-	}
+	// Fails with ConversationNotOwned before the agent is ever prompted.
+	yield* conversations.addMessage(
+		currentUser.id,
+		input.conversationId,
+		{
+			attachmentNames:
+				attachmentNames === undefined || attachmentNames.length === 0
+					? null
+					: attachmentNames,
+			content: input.message,
+			role: 'user',
+		},
+		{ titleIfDefault: deriveConversationTitle(input.message) }
+	);
 
 	const images =
 		input.images === undefined || input.images.length === 0
@@ -128,7 +123,7 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 					type,
 				}));
 	const response = yield* bookkeeper.prompt(
-		makeAgentInstanceId(currentUser.id, conversation.id),
+		makeAgentInstanceId(currentUser.id, input.conversationId),
 		{
 			images,
 			message: input.message,
@@ -137,7 +132,7 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 	const message = response.text;
 	const messageHtml = renderMarkdownToSafeHtml(message);
 
-	yield* conversations.addMessage(currentUser.id, conversation.id, {
+	yield* conversations.addMessage(currentUser.id, input.conversationId, {
 		content: message,
 		contentHtml: messageHtml,
 		role: 'assistant',

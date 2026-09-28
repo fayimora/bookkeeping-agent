@@ -197,6 +197,74 @@ describe('Effect repositories', () => {
 			})
 		);
 
+		it.effect(
+			'renames only default-titled conversations when adding a message',
+			() =>
+				Effect.gen(function* () {
+					const userId = yield* makeUser('conversation-title');
+					const conversations = yield* ConversationsRepo;
+					const messageInput = yield* Schema.decodeUnknownEffect(
+						AddMessageInput
+					)({ content: 'Lunch at Pret', role: 'user' });
+
+					const untitled = yield* conversations.create(
+						userId,
+						yield* Schema.decodeUnknownEffect(CreateConversationInput)({})
+					);
+					yield* conversations.addMessage(userId, untitled.id, messageInput, {
+						titleIfDefault: 'Lunch at Pret',
+					});
+					const renamed = yield* conversations.getById(userId, untitled.id);
+					assert.strictEqual(renamed.title, 'Lunch at Pret');
+
+					const titled = yield* conversations.create(
+						userId,
+						yield* Schema.decodeUnknownEffect(CreateConversationInput)({
+							title: 'Quarterly review',
+						})
+					);
+					yield* conversations.addMessage(userId, titled.id, messageInput, {
+						titleIfDefault: 'Lunch at Pret',
+					});
+					const kept = yield* conversations.getById(userId, titled.id);
+					assert.strictEqual(kept.title, 'Quarterly review');
+				})
+		);
+
+		it.effect('rejects messages on conversations the user does not own', () =>
+			Effect.gen(function* () {
+				const userId = yield* makeUser('message-owner');
+				const otherUserId = yield* makeUser('message-intruder');
+				const conversations = yield* ConversationsRepo;
+				const conversation = yield* conversations.create(
+					userId,
+					yield* Schema.decodeUnknownEffect(CreateConversationInput)({})
+				);
+				const messageInput = yield* Schema.decodeUnknownEffect(AddMessageInput)(
+					{ content: 'Not mine', role: 'user' }
+				);
+
+				const error = yield* Effect.flip(
+					conversations.addMessage(otherUserId, conversation.id, messageInput, {
+						titleIfDefault: 'Hijacked',
+					})
+				);
+				assert.strictEqual(error._tag, 'ConversationNotOwned');
+
+				const untouched = yield* conversations.getById(userId, conversation.id);
+				assert.strictEqual(untouched.title, conversation.title);
+				assert.strictEqual(
+					untouched.lastMessageAt.getTime(),
+					conversation.lastMessageAt.getTime()
+				);
+				const stored = yield* conversations.listMessages(
+					userId,
+					conversation.id
+				);
+				assert.strictEqual(stored.length, 0);
+			})
+		);
+
 		it.effect('maps malformed persisted rows to DbError', () =>
 			Effect.gen(function* () {
 				const db = yield* Database;

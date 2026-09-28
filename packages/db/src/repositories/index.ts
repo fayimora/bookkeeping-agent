@@ -5,6 +5,7 @@ export {
 	type CategoriesRepoService,
 } from './categories';
 export {
+	type AddMessageOptions,
 	ConversationsRepo,
 	ConversationsRepoLive,
 	type ConversationsRepoService,
