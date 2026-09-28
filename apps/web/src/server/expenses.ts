@@ -19,18 +19,6 @@ export const listExpenses = createServerFn({ method: 'GET' })
 		)
 	);
 
-export const getExpenseById = createServerFn({ method: 'GET' })
-	.validator(ExpenseValidators.id)
-	.handler(({ data }) =>
-		runAuthenticatedEffect(
-			Effect.gen(function* () {
-				const currentUser = yield* CurrentUser;
-				const expenses = yield* ExpensesRepo;
-				return yield* expenses.getById(currentUser.id, data.id);
-			})
-		)
-	);
-
 export const createExpense = createServerFn({ method: 'POST' })
 	.validator(ExpenseValidators.create)
 	.handler(({ data }) =>

@@ -1,3 +1,9 @@
+import {
+	isSupportedImageType,
+	maxAttachments,
+	maxImageBytes,
+	supportedImageTypes,
+} from '@bookeeping-agent/domain/chat-attachments';
 import { Button } from '@bookeeping-agent/ui/components/button';
 import {
 	Card,
@@ -17,15 +23,8 @@ import {
 	UserIcon,
 	XIcon,
 } from 'lucide-react';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, memo, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-
-import {
-	isSupportedImageType,
-	maxAttachments,
-	maxImageBytes,
-	supportedImageTypes,
-} from '../../lib/chat-attachments';
 import { sendChatMessage } from '../../server/chat';
 import { listMessages } from '../../server/conversations';
 
@@ -68,7 +67,12 @@ function createMessage(
 	};
 }
 
-function AssistantMarkdown({ html }: { html: string }) {
+// Memoized so composer keystrokes don't re-sanitize the whole transcript.
+const AssistantMarkdown = memo(function AssistantMarkdownHtml({
+	html,
+}: {
+	html: string;
+}) {
 	return (
 		<div
 			className="assistant-markdown"
@@ -76,7 +80,7 @@ function AssistantMarkdown({ html }: { html: string }) {
 			dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
 		/>
 	);
-}
+});
 
 function ChatMessageContent({ chatMessage }: { chatMessage: ChatMessage }) {
 	if (chatMessage.html) {
@@ -351,7 +355,9 @@ export function ChatShell({ conversationId }: { conversationId: string }) {
 		const sizedFiles = imageFiles.filter((file) => file.size <= maxImageBytes);
 
 		if (sizedFiles.length < imageFiles.length) {
-			toast.error('Receipt images must be 5MB or smaller.');
+			toast.error(
+				`Receipt images must be ${maxImageBytes / 1024 / 1024}MB or smaller.`
+			);
 		}
 
 		if (sizedFiles.length === 0) {

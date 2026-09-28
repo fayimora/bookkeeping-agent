@@ -1,46 +1,23 @@
-import { CategoriesRepo } from '@bookeeping-agent/db';
 import {
-	Category,
 	CategoryId,
 	CategoryNotFound,
 	ConflictingUpdate,
-	EmptyUpdate,
 	ListExpensesFilters,
 	UpdateExpenseInput as UpdateExpenseInputSchema,
 	type UserId,
 } from '@bookeeping-agent/domain';
 import { Effect, Schema } from 'effect';
 
-import { retryTransientRead } from '../shared';
+import { resolveCategory } from '../categories/tools';
+import { omitUndefined } from '../shared';
 import type {
 	CreateExpenseToolInput,
 	ListExpensesToolInput,
 	UpdateExpenseToolInput,
 } from './schemas';
 
-interface RawUpdateExpenseValues {
-	amountCents?: number;
-	categoryId?: null | string;
-	currency?: string;
-	date?: string;
-	description?: null | string;
-	vendor?: string;
-}
-
-function hasValue<T>(value: T | undefined): value is T {
-	return value !== undefined;
-}
-
-const resolveCategorySlug = Effect.fn('AgentTools.resolveCategorySlug')(
-	function* (userId: UserId, value: string) {
-		const slug = yield* Schema.decodeUnknownEffect(Category.fields.slug)(value);
-		const categories = yield* CategoriesRepo;
-		const category = yield* retryTransientRead(
-			categories.getBySlug(userId, slug)
-		);
-		return category.id;
-	}
-);
+const resolveCategorySlug = (userId: UserId, slug: string) =>
+	resolveCategory(userId, { slug }).pipe(Effect.map((category) => category.id));
 
 export const resolveExpenseFilters = Effect.fn(
 	'AgentTools.resolveExpenseFilters'
@@ -54,26 +31,14 @@ export const resolveExpenseFilters = Effect.fn(
 		categoryId = yield* resolveCategorySlug(userId, input.categorySlug);
 	}
 
-	const filters: {
-		categoryId?: CategoryId;
-		from?: string;
-		search?: string;
-		to?: string;
-	} = {};
-	if (categoryId !== undefined) {
-		filters.categoryId = categoryId;
-	}
-	if (input.from !== undefined) {
-		filters.from = input.from;
-	}
-	if (input.search !== undefined) {
-		filters.search = input.search;
-	}
-	if (input.to !== undefined) {
-		filters.to = input.to;
-	}
-
-	return yield* Schema.decodeUnknownEffect(ListExpensesFilters)(filters);
+	return yield* Schema.decodeUnknownEffect(ListExpensesFilters)(
+		omitUndefined({
+			categoryId,
+			from: input.from,
+			search: input.search,
+			to: input.to,
+		})
+	);
 });
 
 export const resolveExpenseCategoryId = Effect.fn(
@@ -108,7 +73,7 @@ export const getCategoryUpdate = Effect.fn('AgentTools.getCategoryUpdate')(
 			return { categoryId: null };
 		}
 
-		if (hasValue(input.categoryId) || hasValue(input.categorySlug)) {
+		if (input.categoryId !== undefined || input.categorySlug !== undefined) {
 			return {
 				categoryId: yield* resolveExpenseCategoryId(userId, input),
 			};
@@ -129,7 +94,9 @@ export const getDescriptionUpdate = Effect.fn(
 		return { description: null };
 	}
 
-	return hasValue(input.description) ? { description: input.description } : {};
+	return input.description === undefined
+		? {}
+		: { description: input.description };
 });
 
 export const buildUpdateExpenseValues = Effect.fn(
@@ -137,34 +104,16 @@ export const buildUpdateExpenseValues = Effect.fn(
 )(function* (userId: UserId, input: UpdateExpenseToolInput) {
 	const categoryUpdate = yield* getCategoryUpdate(userId, input);
 	const descriptionUpdate = yield* getDescriptionUpdate(input);
-	const values: RawUpdateExpenseValues = {
+	const values = {
 		...categoryUpdate,
 		...descriptionUpdate,
+		...omitUndefined({
+			amountCents: input.amountCents,
+			currency: input.currency,
+			date: input.date,
+			vendor: input.vendor,
+		}),
 	};
-
-	if (hasValue(input.vendor)) {
-		values.vendor = input.vendor;
-	}
-	if (hasValue(input.date)) {
-		values.date = input.date;
-	}
-	if (hasValue(input.amountCents)) {
-		values.amountCents = input.amountCents;
-	}
-	if (hasValue(input.currency)) {
-		values.currency = input.currency;
-	}
-
-	if (Object.keys(values).length === 0) {
-		return yield* Effect.fail(EmptyUpdate.make({ entity: 'expense' }));
-	}
 
 	return yield* Schema.decodeUnknownEffect(UpdateExpenseInputSchema)(values);
 });
-
-export function formatMoney(amountCents: number, currency: string) {
-	return new Intl.NumberFormat('en-GB', {
-		currency,
-		style: 'currency',
-	}).format(amountCents / 100);
-}

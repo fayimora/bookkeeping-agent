@@ -17,18 +17,6 @@ export const listConversations = createServerFn({ method: 'GET' }).handler(() =>
 	)
 );
 
-export const getConversationById = createServerFn({ method: 'GET' })
-	.validator(ConversationValidators.id)
-	.handler(({ data }) =>
-		runAuthenticatedEffect(
-			Effect.gen(function* () {
-				const currentUser = yield* CurrentUser;
-				const conversations = yield* ConversationsRepo;
-				return yield* conversations.getById(currentUser.id, data.id);
-			})
-		)
-	);
-
 export const createConversation = createServerFn({ method: 'POST' })
 	.validator(ConversationValidators.create)
 	.handler(({ data }) =>

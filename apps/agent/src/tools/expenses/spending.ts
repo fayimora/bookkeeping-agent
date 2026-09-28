@@ -2,14 +2,15 @@ import { CategoriesRepo, ExpensesRepo } from '@bookeeping-agent/db';
 import {
 	type Category,
 	type Expense,
+	formatMoney,
 	type ListExpensesFilters,
-	UserId,
+	type UserId,
 } from '@bookeeping-agent/domain';
-import { Effect, Schema } from 'effect';
+import { Effect } from 'effect';
 
 import { retryTransientRead } from '../shared';
 import type { SpendingBreakdownToolInput } from './schemas';
-import { formatMoney, resolveExpenseFilters } from './utils';
+import { resolveExpenseFilters } from './utils';
 
 type SpendingGroupBy = SpendingBreakdownToolInput['groupBy'];
 
@@ -43,13 +44,13 @@ type SpendingMonthCategoryRow = SpendingCategoryRow & {
 	month: string;
 };
 
-export type SpendingBreakdownRow =
+type SpendingBreakdownRow =
 	| SpendingCategoryRow
 	| SpendingMonthCategoryRow
 	| SpendingMonthRow;
 
 // biome-ignore lint/style/useConsistentTypeDefinitions: Flue's JsonValue envelope requires a structural object alias.
-export type SpendingBreakdown = {
+type SpendingBreakdown = {
 	dateRange: {
 		from: null | string;
 		to: null | string;
@@ -75,25 +76,6 @@ const uncategorized = {
 	name: 'Uncategorized',
 	slug: null,
 };
-
-function normalizeFilters(
-	filters: ListExpensesFilters
-): NormalizedSpendingFilters {
-	const normalized: NormalizedSpendingFilters = {};
-	if (filters.categoryId !== undefined) {
-		normalized.categoryId = filters.categoryId;
-	}
-	if (filters.from !== undefined) {
-		normalized.from = filters.from;
-	}
-	if (filters.search !== undefined) {
-		normalized.search = filters.search;
-	}
-	if (filters.to !== undefined) {
-		normalized.to = filters.to;
-	}
-	return normalized;
-}
 
 function effectiveDateRange(
 	expenses: readonly Expense[],
@@ -230,7 +212,7 @@ function buildRows(
 	return rows;
 }
 
-export function buildSpendingBreakdown(
+function buildSpendingBreakdown(
 	expenses: readonly Expense[],
 	categories: readonly Category[],
 	filters: ListExpensesFilters,
@@ -280,7 +262,7 @@ export function buildSpendingBreakdown(
 	return {
 		dateRange,
 		expenseCount: expenses.length,
-		filters: normalizeFilters(filters),
+		filters: { ...filters },
 		groupBy,
 		periods: requestedPeriods(dateRange.from, dateRange.to),
 		rows,
@@ -292,8 +274,7 @@ export function buildSpendingBreakdown(
 
 export const spendingBreakdownWorkflow = Effect.fn(
 	'AgentTools.getSpendingBreakdown'
-)(function* (userIdValue: string, input: SpendingBreakdownToolInput) {
-	const userId = yield* Schema.decodeUnknownEffect(UserId)(userIdValue);
+)(function* (userId: UserId, input: SpendingBreakdownToolInput) {
 	const filters = yield* resolveExpenseFilters(userId, input);
 	const expensesRepo = yield* ExpensesRepo;
 	const expenses = yield* retryTransientRead(

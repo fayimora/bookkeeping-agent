@@ -1,6 +1,5 @@
 import {
 	description,
-	type InferOutput,
 	maxLength,
 	minLength,
 	object,
@@ -36,16 +35,10 @@ export const getCategoryParameters = object({
 	slug: optional(categorySlugParameter),
 });
 
-export type GetCategoryToolInput = InferOutput<typeof getCategoryParameters>;
-
 export const createCategoryParameters = object({
 	name: categoryNameParameter,
 	slug: optional(categorySlugParameter),
 });
-
-export type CreateCategoryToolInput = InferOutput<
-	typeof createCategoryParameters
->;
 
 export const updateCategoryParameters = object({
 	id: optional(categoryIdParameter),
@@ -61,15 +54,7 @@ export const updateCategoryParameters = object({
 	slug: optional(categorySlugParameter),
 });
 
-export type UpdateCategoryToolInput = InferOutput<
-	typeof updateCategoryParameters
->;
-
 export const deleteCategoryParameters = object({
 	id: optional(categoryIdParameter),
 	slug: optional(categorySlugParameter),
 });
-
-export type DeleteCategoryToolInput = InferOutput<
-	typeof deleteCategoryParameters
->;

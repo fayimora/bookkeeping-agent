@@ -2,7 +2,7 @@ import { ExpensesRepo } from '@bookeeping-agent/db';
 import {
 	CreateExpenseInput,
 	ExpenseId,
-	UserId,
+	type UserId,
 } from '@bookeeping-agent/domain';
 import { defineTool, type ToolDefinition } from '@flue/runtime';
 import { Effect, Schema } from 'effect';
@@ -24,17 +24,15 @@ import {
 } from './utils';
 
 const listExpenseWorkflow = Effect.fn('AgentTools.listExpenses')(function* (
-	userIdValue: string,
+	userId: UserId,
 	input: Parameters<typeof resolveExpenseFilters>[1]
 ) {
-	const userId = yield* Schema.decodeUnknownEffect(UserId)(userIdValue);
 	const filters = yield* resolveExpenseFilters(userId, input);
 	const expenses = yield* ExpensesRepo;
-	const listed = yield* retryTransientRead(expenses.list(userId, filters));
-	return { expenses: listed, filters };
+	return yield* retryTransientRead(expenses.list(userId, filters));
 });
 
-export function expenseTools(userId: string): ToolDefinition[] {
+export function expenseTools(userId: UserId): ToolDefinition[] {
 	const listExpensesTool = defineTool({
 		description:
 			'List expenses, optionally filtered by date, category, or text.',
@@ -43,7 +41,7 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				listExpenseWorkflow(userId, input).pipe(
-					Effect.map(({ expenses }) =>
+					Effect.map((expenses) =>
 						JSON.stringify({ count: expenses.length, expenses })
 					)
 				),
@@ -58,14 +56,12 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId =
-						yield* Schema.decodeUnknownEffect(UserId)(userId);
 					const expenseId = yield* Schema.decodeUnknownEffect(ExpenseId)(
 						input.id
 					);
 					const expenses = yield* ExpensesRepo;
 					const expense = yield* retryTransientRead(
-						expenses.getById(parsedUserId, expenseId)
+						expenses.getById(userId, expenseId)
 					);
 					return JSON.stringify({ expense });
 				}),
@@ -95,18 +91,13 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId =
-						yield* Schema.decodeUnknownEffect(UserId)(userId);
-					const categoryId = yield* resolveExpenseCategoryId(
-						parsedUserId,
-						input
-					);
+					const categoryId = yield* resolveExpenseCategoryId(userId, input);
 					const values = yield* Schema.decodeUnknownEffect(CreateExpenseInput)({
 						...input,
 						categoryId,
 					});
 					const expenses = yield* ExpensesRepo;
-					const expense = yield* expenses.create(parsedUserId, values);
+					const expense = yield* expenses.create(userId, values);
 					return JSON.stringify({ expense });
 				}),
 				signal
@@ -121,18 +112,12 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId =
-						yield* Schema.decodeUnknownEffect(UserId)(userId);
 					const expenseId = yield* Schema.decodeUnknownEffect(ExpenseId)(
 						input.id
 					);
-					const values = yield* buildUpdateExpenseValues(parsedUserId, input);
+					const values = yield* buildUpdateExpenseValues(userId, input);
 					const expenses = yield* ExpensesRepo;
-					const expense = yield* expenses.update(
-						parsedUserId,
-						expenseId,
-						values
-					);
+					const expense = yield* expenses.update(userId, expenseId, values);
 					return JSON.stringify({ expense });
 				}),
 				signal
@@ -146,13 +131,11 @@ export function expenseTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId =
-						yield* Schema.decodeUnknownEffect(UserId)(userId);
 					const expenseId = yield* Schema.decodeUnknownEffect(ExpenseId)(
 						input.id
 					);
 					const expenses = yield* ExpensesRepo;
-					const expense = yield* expenses.delete(parsedUserId, expenseId);
+					const expense = yield* expenses.delete(userId, expenseId);
 					return JSON.stringify({ deletedExpense: expense });
 				}),
 				signal

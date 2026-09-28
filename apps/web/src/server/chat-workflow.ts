@@ -1,5 +1,9 @@
 import { ConversationsRepo } from '@bookeeping-agent/db';
-import type { SendChatMessageInput } from '@bookeeping-agent/domain';
+import {
+	defaultConversationTitle,
+	makeAgentInstanceId,
+	type SendChatMessageInput,
+} from '@bookeeping-agent/domain';
 import { Effect } from 'effect';
 import sanitizeHtml from 'sanitize-html';
 import { markdownToHtml } from 'satteri';
@@ -7,7 +11,6 @@ import { markdownToHtml } from 'satteri';
 import { CurrentUser } from './auth';
 import { BookkeeperClient } from './bookkeeper-client';
 
-const defaultConversationTitle = 'New chat';
 const maxDerivedTitleLength = 48;
 
 export function deriveConversationTitle(message: string) {
@@ -125,7 +128,7 @@ export const sendChatMessageWorkflow = Effect.fn('Chat.sendMessage')(function* (
 					type,
 				}));
 	const response = yield* bookkeeper.prompt(
-		`${currentUser.id}::${conversation.id}`,
+		makeAgentInstanceId(currentUser.id, conversation.id),
 		{
 			images,
 			message: input.message,

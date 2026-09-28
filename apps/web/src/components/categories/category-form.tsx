@@ -1,8 +1,8 @@
+import { slugifyCategoryName } from '@bookeeping-agent/domain/formatting';
 import { Input } from '@bookeeping-agent/ui/components/input';
 import { Label } from '@bookeeping-agent/ui/components/label';
 
 import type { CategoryFormValues } from './types';
-import { slugifyCategoryName } from './utils';
 
 export function CategoryForm({
 	isEditing,

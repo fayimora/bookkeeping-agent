@@ -1,9 +1,8 @@
 import { CategoriesRepo } from '@bookeeping-agent/db';
-import { UserId } from '@bookeeping-agent/domain';
+import { categorySlugForCreate, UserId } from '@bookeeping-agent/domain';
 import { assert, describe, it as effectIt, layer } from '@effect/vitest';
 import { Effect, Layer, Schema } from 'effect';
 
-import { categorySlugForCreate } from '../src/tools/categories/tools';
 import { buildUpdateExpenseValues } from '../src/tools/expenses/utils';
 
 const CategoriesTestLive = Layer.succeed(
@@ -67,17 +66,6 @@ describe('expense tool workflows', () => {
 				if (error._tag === 'ConflictingUpdate') {
 					assert.strictEqual(error.field, 'description');
 				}
-			})
-		);
-
-		it.effect('rejects empty expense updates', () =>
-			Effect.gen(function* () {
-				const userId = yield* testUserId;
-				const error = yield* Effect.flip(
-					buildUpdateExpenseValues(userId, { id: expenseId })
-				);
-
-				assert.strictEqual(error._tag, 'EmptyUpdate');
 			})
 		);
 

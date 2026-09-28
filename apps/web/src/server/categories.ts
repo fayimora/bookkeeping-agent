@@ -17,30 +17,6 @@ export const listCategories = createServerFn({ method: 'GET' }).handler(() =>
 	)
 );
 
-export const getCategoryById = createServerFn({ method: 'GET' })
-	.validator(CategoryValidators.id)
-	.handler(({ data }) =>
-		runAuthenticatedEffect(
-			Effect.gen(function* () {
-				const currentUser = yield* CurrentUser;
-				const categories = yield* CategoriesRepo;
-				return yield* categories.getById(currentUser.id, data.id);
-			})
-		)
-	);
-
-export const getCategoryBySlug = createServerFn({ method: 'GET' })
-	.validator(CategoryValidators.slug)
-	.handler(({ data }) =>
-		runAuthenticatedEffect(
-			Effect.gen(function* () {
-				const currentUser = yield* CurrentUser;
-				const categories = yield* CategoriesRepo;
-				return yield* categories.getBySlug(currentUser.id, data.slug);
-			})
-		)
-	);
-
 export const createCategory = createServerFn({ method: 'POST' })
 	.validator(CategoryValidators.create)
 	.handler(({ data }) =>

@@ -1,16 +1,10 @@
-import type { CategoryFormValues } from './types';
+import { categorySlugForCreate } from '@bookeeping-agent/domain/formatting';
 
-export function slugifyCategoryName(value: string) {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '');
-}
+import type { CategoryFormValues } from './types';
 
 export function toCategoryInput(values: CategoryFormValues) {
 	return {
 		name: values.name,
-		slug: values.slug || slugifyCategoryName(values.name),
+		slug: categorySlugForCreate(values.name, values.slug),
 	};
 }

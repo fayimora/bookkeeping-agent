@@ -15,7 +15,12 @@ import { and, asc, desc, eq } from 'drizzle-orm';
 import { Context, Effect, Layer, Schema } from 'effect';
 
 import { Database } from '#db/database';
-import { DbError, dbError } from '#db/errors';
+import {
+	type DbError,
+	dbError,
+	missingRow,
+	transactionError,
+} from '#db/errors';
 import { conversations, messages } from '#db/schema';
 
 export interface ConversationsRepoService {
@@ -67,12 +72,6 @@ const decodeMessages = (operation: string, rows: unknown) =>
 	);
 const decodeMessage = (operation: string, row: unknown) =>
 	Schema.decodeUnknownEffect(MessageSchema)(row).pipe(dbError(operation));
-
-const missingMutationRow = (operation: string) =>
-	DbError.make({
-		cause: new Error('Database mutation returned no row.'),
-		operation,
-	});
 
 export const ConversationsRepoLive = Layer.effect(
 	ConversationsRepo,
@@ -132,7 +131,7 @@ export const ConversationsRepoLive = Layer.effect(
 			const [row] = rows;
 			if (row === undefined) {
 				return yield* Effect.fail(
-					missingMutationRow('ConversationsRepo.create.insert')
+					missingRow('ConversationsRepo.create.insert')
 				);
 			}
 
@@ -270,7 +269,7 @@ export const ConversationsRepoLive = Layer.effect(
 						const [row] = rows;
 						if (row === undefined) {
 							return yield* Effect.fail(
-								missingMutationRow('ConversationsRepo.addMessage.insert')
+								missingRow('ConversationsRepo.addMessage.insert')
 							);
 						}
 
@@ -286,16 +285,7 @@ export const ConversationsRepoLive = Layer.effect(
 						);
 					})
 				)
-				.pipe(
-					Effect.catchTag('SqlError', (cause) =>
-						Effect.fail(
-							DbError.make({
-								cause,
-								operation: 'ConversationsRepo.addMessage.transaction',
-							})
-						)
-					)
-				);
+				.pipe(transactionError('ConversationsRepo.addMessage.transaction'));
 		});
 
 		return ConversationsRepo.of({

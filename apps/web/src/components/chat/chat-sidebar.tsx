@@ -1,3 +1,4 @@
+import { maxConversationTitleLength } from '@bookeeping-agent/domain/conversation';
 import {
 	AlertDialog,
 	AlertDialogActionButton,
@@ -36,8 +37,6 @@ import {
 } from '../../server/conversations';
 
 type Conversation = Awaited<ReturnType<typeof listConversations>>[number];
-
-const maxTitleLength = 200;
 
 export function ChatSidebar() {
 	const queryClient = useQueryClient();
@@ -132,8 +131,10 @@ export function ChatSidebar() {
 			return;
 		}
 
-		if (trimmed.length > maxTitleLength) {
-			toast.error(`Chat name must be ${maxTitleLength} characters or fewer`);
+		if (trimmed.length > maxConversationTitleLength) {
+			toast.error(
+				`Chat name must be ${maxConversationTitleLength} characters or fewer`
+			);
 			return;
 		}
 

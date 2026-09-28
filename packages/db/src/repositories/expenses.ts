@@ -14,8 +14,13 @@ import {
 import { and, desc, eq, gte, ilike, lte, or, type SQL } from 'drizzle-orm';
 import { Context, Effect, Layer, Schema } from 'effect';
 
-import { Database } from '#db/database';
-import { DbError, dbError } from '#db/errors';
+import { Database, type DatabaseService } from '#db/database';
+import {
+	type DbError,
+	dbError,
+	missingRow,
+	transactionError,
+} from '#db/errors';
 import { categories, expenses } from '#db/schema';
 
 export interface ExpensesRepoService {
@@ -45,6 +50,8 @@ export interface ExpensesRepoService {
 	>;
 }
 
+type Transaction = Parameters<Parameters<DatabaseService['transaction']>[0]>[0];
+
 export class ExpensesRepo extends Context.Service<
 	ExpensesRepo,
 	ExpensesRepoService
@@ -58,25 +65,27 @@ const decodeExpenses = (operation: string, rows: unknown) =>
 const decodeExpense = (operation: string, row: unknown) =>
 	Schema.decodeUnknownEffect(ExpenseSchema)(row).pipe(dbError(operation));
 
-const missingReturnedRow = (operation: string) =>
-	DbError.make({
-		cause: new Error('Database mutation returned no row.'),
-		operation,
-	});
-
 export const ExpensesRepoLive = Layer.effect(
 	ExpensesRepo,
 	Effect.gen(function* () {
 		const db = yield* Database;
 
 		const ensureCategoryOwned = Effect.fn('ExpensesRepo.ensureCategoryOwned')(
-			function* <R>(
-				query: Effect.Effect<readonly { readonly id: string }[], unknown, R>,
+			function* (
+				tx: Transaction,
 				userId: UserId,
 				categoryId: CategoryId,
 				operation: string
 			) {
-				const rows = yield* query.pipe(dbError(operation));
+				const rows = yield* tx
+					.select({ id: categories.id })
+					.from(categories)
+					.where(
+						and(eq(categories.id, categoryId), eq(categories.userId, userId))
+					)
+					.limit(1)
+					.for('key share')
+					.pipe(dbError(operation));
 				if (rows.length === 0) {
 					return yield* Effect.fail(
 						CategoryNotOwned.make({ categoryId, userId })
@@ -148,17 +157,7 @@ export const ExpensesRepoLive = Layer.effect(
 					Effect.gen(function* () {
 						if (input.categoryId !== undefined && input.categoryId !== null) {
 							yield* ensureCategoryOwned(
-								tx
-									.select({ id: categories.id })
-									.from(categories)
-									.where(
-										and(
-											eq(categories.id, input.categoryId),
-											eq(categories.userId, userId)
-										)
-									)
-									.limit(1)
-									.for('key share'),
+								tx,
 								userId,
 								input.categoryId,
 								'ExpensesRepo.create.category'
@@ -173,23 +172,14 @@ export const ExpensesRepoLive = Layer.effect(
 						const [row] = rows;
 						if (row === undefined) {
 							return yield* Effect.fail(
-								missingReturnedRow('ExpensesRepo.create.insert')
+								missingRow('ExpensesRepo.create.insert')
 							);
 						}
 
 						return yield* decodeExpense('ExpensesRepo.create.decode', row);
 					})
 				)
-				.pipe(
-					Effect.catchTag('SqlError', (cause) =>
-						Effect.fail(
-							DbError.make({
-								cause,
-								operation: 'ExpensesRepo.create.transaction',
-							})
-						)
-					)
-				);
+				.pipe(transactionError('ExpensesRepo.create.transaction'));
 		});
 
 		const update = Effect.fn('ExpensesRepo.update')(function* (
@@ -206,17 +196,7 @@ export const ExpensesRepoLive = Layer.effect(
 					Effect.gen(function* () {
 						if (input.categoryId !== undefined && input.categoryId !== null) {
 							yield* ensureCategoryOwned(
-								tx
-									.select({ id: categories.id })
-									.from(categories)
-									.where(
-										and(
-											eq(categories.id, input.categoryId),
-											eq(categories.userId, userId)
-										)
-									)
-									.limit(1)
-									.for('key share'),
+								tx,
 								userId,
 								input.categoryId,
 								'ExpensesRepo.update.category'
@@ -239,16 +219,7 @@ export const ExpensesRepoLive = Layer.effect(
 						return yield* decodeExpense('ExpensesRepo.update.decode', row);
 					})
 				)
-				.pipe(
-					Effect.catchTag('SqlError', (cause) =>
-						Effect.fail(
-							DbError.make({
-								cause,
-								operation: 'ExpensesRepo.update.transaction',
-							})
-						)
-					)
-				);
+				.pipe(transactionError('ExpensesRepo.update.transaction'));
 		});
 
 		const deleteExpense = Effect.fn('ExpensesRepo.delete')(function* (

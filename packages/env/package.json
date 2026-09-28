@@ -7,14 +7,12 @@
     "./agent": "./src/agent.ts",
     "./database": "./src/database.ts",
     "./telemetry": "./src/telemetry.ts",
-    "./web": "./src/web.ts",
     "./web-server": "./src/web-server.ts"
   },
   "scripts": {
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@t3-oss/env-core": "^0.13.11",
     "effect": "catalog:"
   },
   "devDependencies": {

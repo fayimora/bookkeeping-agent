@@ -4,14 +4,14 @@ import {
 	CategoryId,
 	CategoryNotFound,
 	CreateCategoryInput,
-	EmptyUpdate,
+	categorySlugForCreate,
 	UpdateCategoryInput,
-	UserId,
+	type UserId,
 } from '@bookeeping-agent/domain';
 import { defineTool, type ToolDefinition } from '@flue/runtime';
 import { Effect, Schema } from 'effect';
 
-import { retryTransientRead, runToolEffect } from '../shared';
+import { omitUndefined, retryTransientRead, runToolEffect } from '../shared';
 import {
 	createCategoryParameters,
 	deleteCategoryParameters,
@@ -24,20 +24,6 @@ interface CategoryLookup {
 	readonly id?: string;
 	readonly slug?: string;
 }
-
-function slugifyCategoryName(value: string) {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, '-')
-		.replace(/^-+|-+$/g, '');
-}
-
-export function categorySlugForCreate(name: string, slug?: string) {
-	return slug?.trim() || slugifyCategoryName(name);
-}
-
-const decodeUserId = Schema.decodeUnknownEffect(UserId);
 
 export const resolveCategory = Effect.fn('AgentTools.resolveCategory')(
 	function* (userId: UserId, input: CategoryLookup) {
@@ -63,7 +49,7 @@ export const resolveCategory = Effect.fn('AgentTools.resolveCategory')(
 	}
 );
 
-export function categoryTools(userId: string): ToolDefinition[] {
+export function categoryTools(userId: UserId): ToolDefinition[] {
 	const listCategoriesTool = defineTool({
 		description:
 			'List expense categories. Use before creating or updating an expense when a valid category is needed.',
@@ -72,11 +58,8 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		run: ({ signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId = yield* decodeUserId(userId);
 					const categories = yield* CategoriesRepo;
-					const listed = yield* retryTransientRead(
-						categories.list(parsedUserId)
-					);
+					const listed = yield* retryTransientRead(categories.list(userId));
 					return JSON.stringify({ categories: listed });
 				}),
 				signal
@@ -90,8 +73,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId = yield* decodeUserId(userId);
-					const category = yield* resolveCategory(parsedUserId, input);
+					const category = yield* resolveCategory(userId, input);
 					return JSON.stringify({ category });
 				}),
 				signal
@@ -106,7 +88,6 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId = yield* decodeUserId(userId);
 					const values = yield* Schema.decodeUnknownEffect(CreateCategoryInput)(
 						{
 							name: input.name,
@@ -114,7 +95,7 @@ export function categoryTools(userId: string): ToolDefinition[] {
 						}
 					);
 					const categories = yield* CategoriesRepo;
-					const category = yield* categories.create(parsedUserId, values);
+					const category = yield* categories.create(userId, values);
 					return JSON.stringify({ category });
 				}),
 				signal
@@ -129,23 +110,13 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId = yield* decodeUserId(userId);
-					const existing = yield* resolveCategory(parsedUserId, input);
-					const rawValues: { name?: string; slug?: string } = {};
-					if (input.name !== undefined) {
-						rawValues.name = input.name;
-					}
-					if (input.newSlug !== undefined) {
-						rawValues.slug = input.newSlug;
-					}
-					if (Object.keys(rawValues).length === 0) {
-						return yield* Effect.fail(EmptyUpdate.make({ entity: 'category' }));
-					}
-					const values =
-						yield* Schema.decodeUnknownEffect(UpdateCategoryInput)(rawValues);
+					const existing = yield* resolveCategory(userId, input);
+					const values = yield* Schema.decodeUnknownEffect(UpdateCategoryInput)(
+						omitUndefined({ name: input.name, slug: input.newSlug })
+					);
 					const categories = yield* CategoriesRepo;
 					const category = yield* categories.update(
-						parsedUserId,
+						userId,
 						existing.id,
 						values
 					);
@@ -163,10 +134,9 @@ export function categoryTools(userId: string): ToolDefinition[] {
 		run: ({ data: input, signal }) =>
 			runToolEffect(
 				Effect.gen(function* () {
-					const parsedUserId = yield* decodeUserId(userId);
-					const existing = yield* resolveCategory(parsedUserId, input);
+					const existing = yield* resolveCategory(userId, input);
 					const categories = yield* CategoriesRepo;
-					const category = yield* categories.delete(parsedUserId, existing.id);
+					const category = yield* categories.delete(userId, existing.id);
 					return JSON.stringify({ deletedCategory: category });
 				}),
 				signal

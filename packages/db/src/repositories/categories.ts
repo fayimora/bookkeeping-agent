@@ -12,7 +12,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { Context, Effect, Layer, Schema } from 'effect';
 
 import { Database } from '#db/database';
-import { DbError, dbError } from '#db/errors';
+import { type DbError, dbError, missingRow } from '#db/errors';
 import { categories } from '#db/schema';
 
 export interface CategoriesRepoService {
@@ -131,12 +131,7 @@ export const CategoriesRepoLive = Layer.effect(
 				.pipe(dbError('CategoriesRepo.create.insert'));
 			const [row] = rows;
 			if (row === undefined) {
-				return yield* Effect.fail(
-					DbError.make({
-						cause: new Error('Database mutation returned no row.'),
-						operation: 'CategoriesRepo.create.insert',
-					})
-				);
+				return yield* Effect.fail(missingRow('CategoriesRepo.create.insert'));
 			}
 
 			return yield* decodeCategory('CategoriesRepo.create.decode', row);

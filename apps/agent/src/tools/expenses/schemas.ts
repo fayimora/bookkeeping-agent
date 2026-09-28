@@ -1,3 +1,4 @@
+import { isoDatePattern } from '@bookeeping-agent/domain';
 import {
 	boolean,
 	description,
@@ -15,8 +16,6 @@ import {
 	string,
 } from 'valibot';
 
-export const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-
 export const listExpensesParameters = object({
 	categoryId: optional(
 		pipe(string(), description('Category UUID to filter by.'))
@@ -32,7 +31,7 @@ export const listExpensesParameters = object({
 		pipe(
 			string(),
 			description('Start date in YYYY-MM-DD format.'),
-			regex(datePattern)
+			regex(isoDatePattern)
 		)
 	),
 	search: optional(
@@ -46,7 +45,7 @@ export const listExpensesParameters = object({
 		pipe(
 			string(),
 			description('End date in YYYY-MM-DD format.'),
-			regex(datePattern)
+			regex(isoDatePattern)
 		)
 	),
 });
@@ -54,40 +53,10 @@ export const listExpensesParameters = object({
 export type ListExpensesToolInput = InferOutput<typeof listExpensesParameters>;
 
 export const spendingBreakdownParameters = object({
-	categoryId: optional(
-		pipe(string(), description('Category UUID to filter by.'))
-	),
-	categorySlug: optional(
-		pipe(
-			string(),
-			description('Category slug to filter by, such as food or travel.'),
-			minLength(1)
-		)
-	),
-	from: optional(
-		pipe(
-			string(),
-			description('Start date in YYYY-MM-DD format.'),
-			regex(datePattern)
-		)
-	),
+	...listExpensesParameters.entries,
 	groupBy: pipe(
 		picklist(['total', 'month', 'category', 'month_category']),
 		description('How to group spending totals.')
-	),
-	search: optional(
-		pipe(
-			string(),
-			description('Search text for vendor or description.'),
-			minLength(1)
-		)
-	),
-	to: optional(
-		pipe(
-			string(),
-			description('End date in YYYY-MM-DD format.'),
-			regex(datePattern)
-		)
 	),
 });
 
@@ -104,8 +73,6 @@ const expenseIdParameter = pipe(
 export const getExpenseParameters = object({
 	id: expenseIdParameter,
 });
-
-export type GetExpenseToolInput = InferOutput<typeof getExpenseParameters>;
 
 export const createExpenseParameters = object({
 	amountCents: pipe(
@@ -137,7 +104,7 @@ export const createExpenseParameters = object({
 	date: pipe(
 		string(),
 		description('Expense date in YYYY-MM-DD format.'),
-		regex(datePattern)
+		regex(isoDatePattern)
 	),
 	description: optional(
 		pipe(
@@ -200,7 +167,7 @@ export const updateExpenseParameters = object({
 		pipe(
 			string(),
 			description('Updated expense date in YYYY-MM-DD format.'),
-			regex(datePattern)
+			regex(isoDatePattern)
 		)
 	),
 	description: optional(
@@ -228,7 +195,3 @@ export type UpdateExpenseToolInput = InferOutput<
 export const deleteExpenseParameters = object({
 	id: expenseIdParameter,
 });
-
-export type DeleteExpenseToolInput = InferOutput<
-	typeof deleteExpenseParameters
->;

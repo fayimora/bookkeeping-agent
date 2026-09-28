@@ -78,6 +78,13 @@ const modelFriendlyErrors = <A, R>(effect: Effect.Effect<A, ToolFailure, R>) =>
 		})
 	);
 
+/** Drop undefined-valued keys so optional-key schemas accept the object. */
+export function omitUndefined<T extends object>(value: T) {
+	return Object.fromEntries(
+		Object.entries(value).filter(([, entry]) => entry !== undefined)
+	) as { [K in keyof T]?: Exclude<T[K], undefined> };
+}
+
 /** Run an Effect tool workflow at the Flue boundary with real cancellation. */
 export function runToolEffect<A, R extends AgentService>(
 	effect: Effect.Effect<A, ToolFailure, R>,

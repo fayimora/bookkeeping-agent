@@ -1,4 +1,8 @@
 import {
+	defaultConversationTitle,
+	maxConversationTitleLength,
+} from '@bookeeping-agent/domain/conversation';
+import {
 	boolean,
 	date,
 	index,
@@ -167,7 +171,9 @@ export const conversations = pgTable(
 		lastMessageAt: timestamp('last_message_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),
-		title: varchar('title', { length: 200 }).notNull().default('New chat'),
+		title: varchar('title', { length: maxConversationTitleLength })
+			.notNull()
+			.default(defaultConversationTitle),
 		updatedAt: timestamp('updated_at', { withTimezone: true })
 			.defaultNow()
 			.notNull(),

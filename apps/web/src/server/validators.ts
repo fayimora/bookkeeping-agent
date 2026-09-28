@@ -1,5 +1,4 @@
 import {
-	Category,
 	CategoryId,
 	ConversationId,
 	CreateCategoryInput,
@@ -23,7 +22,6 @@ const UpdateExpenseRequest = Schema.Struct({
 const OptionalExpenseFilters = Schema.UndefinedOr(ListExpensesFilters);
 
 const CategoryIdInput = Schema.Struct({ id: CategoryId });
-const CategorySlugInput = Schema.Struct({ slug: Category.fields.slug });
 const UpdateCategoryRequest = Schema.Struct({
 	id: CategoryId,
 	input: UpdateCategoryInput,
@@ -60,7 +58,6 @@ export const ExpenseValidators = {
 export const CategoryValidators = {
 	create: standard(CreateCategoryInput),
 	id: standard(CategoryIdInput),
-	slug: standard(CategorySlugInput),
 	update: standard(UpdateCategoryRequest),
 };
 

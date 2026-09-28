@@ -50,20 +50,22 @@ function RootDocument() {
 						<Outlet />
 					</div>
 					<Toaster richColors />
-					<TanStackDevtools
-						plugins={[
-							{
-								id: 'tanstack-query',
-								name: 'TanStack Query',
-								render: <ReactQueryDevtoolsPanel />,
-							},
-							{
-								id: 'tanstack-router',
-								name: 'TanStack Router',
-								render: <TanStackRouterDevtoolsPanel />,
-							},
-						]}
-					/>
+					{import.meta.env.DEV ? (
+						<TanStackDevtools
+							plugins={[
+								{
+									id: 'tanstack-query',
+									name: 'TanStack Query',
+									render: <ReactQueryDevtoolsPanel />,
+								},
+								{
+									id: 'tanstack-router',
+									name: 'TanStack Router',
+									render: <TanStackRouterDevtoolsPanel />,
+								},
+							]}
+						/>
+					) : null}
 				</QueryProvider>
 				<Scripts />
 			</body>

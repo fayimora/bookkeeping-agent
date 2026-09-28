@@ -20,13 +20,6 @@ export function centsToDecimal(value: number) {
 	return (value / 100).toFixed(2);
 }
 
-export function formatMoney(amountCents: number, currency: string) {
-	return new Intl.NumberFormat('en-GB', {
-		currency,
-		style: 'currency',
-	}).format(amountCents / 100);
-}
-
 export function formatDate(value: string) {
 	return new Intl.DateTimeFormat('en-GB', {
 		dateStyle: 'medium',

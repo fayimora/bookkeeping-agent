@@ -1,5 +1,6 @@
 import { Schema } from 'effect';
 
+import { maxConversationTitleLength } from './conversation';
 import {
 	AmountCents,
 	CategoryId,
@@ -14,7 +15,9 @@ import {
 
 const CategoryName = TrimmedNonEmptyString.check(Schema.isMaxLength(100));
 const CategorySlug = TrimmedNonEmptyString.check(Schema.isMaxLength(100));
-const ConversationTitle = TrimmedNonEmptyString.check(Schema.isMaxLength(200));
+const ConversationTitle = TrimmedNonEmptyString.check(
+	Schema.isMaxLength(maxConversationTitleLength)
+);
 const Vendor = TrimmedNonEmptyString.check(Schema.isMaxLength(200));
 
 export const MessageRole = Schema.Literals(['user', 'assistant']);

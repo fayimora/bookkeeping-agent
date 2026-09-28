@@ -27,8 +27,10 @@ export const Currency = Schema.Trim.pipe(
 	.pipe(Schema.brand('Currency'));
 export type Currency = typeof Currency.Type;
 
+export const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+
 export const IsoDate = Schema.String.check(
-	Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/)
+	Schema.isPattern(isoDatePattern)
 ).pipe(Schema.brand('IsoDate'));
 export type IsoDate = typeof IsoDate.Type;
 
