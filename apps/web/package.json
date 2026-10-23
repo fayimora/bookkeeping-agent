@@ -18,7 +18,7 @@
     "@bookeeping-agent/telemetry": "workspace:*",
     "@bookeeping-agent/ui": "workspace:*",
     "@effect/opentelemetry": "catalog:",
-    "@flue/sdk": "2.0.3",
+    "@flue/sdk": "2.3.0",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/exporter-trace-otlp-http": "catalog:",
     "@opentelemetry/resources": "catalog:",
